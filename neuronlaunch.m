@@ -112,17 +112,19 @@ close all force hidden
 %% Compile custom .mod files
 unix('nrnivmodl');
 
-%% This is for MATLAB R2017a and beyond, for compatibility with the code
+%% Set all legend 'AutoUpdate' properties to 'off'
+%   This is for MATLAB R2017a and beyond, for compatibility with the code
+%   However, it doesn't seem to be working ...
 set(0, 'defaultLegendAutoUpdate', 'off');
 
 %% Experiment Name
 experimentname = 'RTCl';
 
 %% Flags
-debugflag = 1; %0;              % very short simulation
+debugflag = 0;              % very short simulation
 singletrialnum = 0;         % run only one trial with this trial number
 onlargememflag = 0;         % run on large memory nodes
-saveplotmode = 'all'; % 'curves';    % what to save and plot
+saveplotmode = 'curves';    % what to save and plot
 loopmode = 'cross';         % how to loop through parameters: 'cross' or 'grid'
                             %   'cross' - Loop through each parameter 
                             %               while fixing others
