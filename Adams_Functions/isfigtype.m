@@ -42,6 +42,7 @@ function [results, figtypes] = isfigtype (strings, varargin)
 % File History:
 % 2017-05-09 Created by Adam Lu
 % 2017-05-23 Modified linewidth and indentation
+% 2018-05-08 Changed tabs to spaces and limited width to 80
 % 
 
 %% Taken from Matlab 2017a Documentation
@@ -57,12 +58,13 @@ possible_figtypes = {'png', 'fig', 'm', 'mfig', ...
 %% Deal with arguments
 % Check number of required arguments
 if nargin < 1
-    error('Not enough input arguments, type ''help isfigtype'' for usage');
+    error(['Not enough input arguments, ', ...
+            'type ''help %s'' for usage'], mfilename);
 end
 
 % Set up Input Parser Scheme
-iP = inputParser;         
-iP.FunctionName = 'isfigtype';
+iP = inputParser;
+iP.FunctionName = mfilename;
 iP.KeepUnmatched = true;                        % allow extraneous options
 
 % Add required inputs to an Input Parser
@@ -113,9 +115,4 @@ end
 %{
 OLD CODE:
 
-global validatemode possible_figtypes        
-            % share variables with validate_string()
-
 %}
-
-

@@ -44,8 +44,11 @@ if nargin < 1
             'type ''help %s'' for usage'], mfilename);
 end
 
-% Add required inputs to an input Parser
+% Set up Input Parser Scheme
 iP = inputParser;
+iP.FunctionName = mfilename;
+
+% Add required inputs to an input Parser
 addRequired(iP, 'filename', ...
     @(x) validateattributes(x, {'char', 'string'}, {'nonempty'}));
 %    @(x) validateattributes(x, {'char', 'string'}, {'scalartext'}));

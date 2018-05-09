@@ -7,11 +7,23 @@ function variable = check_and_collapse_identical_contents (array, arrayName)
 %       /media/adamX/m3ha/network_model/tuning_curves.m
 %
 % 2017-04-17 Created
+% 2018-05-08 Changed tabs to spaces and limited width to 80
 % TODO: Add input parser
 % TODO: Make arrayName = ip.ArrayName a Parameter-Value pair (default '')
 %
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Deal with arguments
+% Check number of required arguments
+if nargin < 2
+    error(['Not enough input arguments, ', ...
+            'type ''help %s'' for usage'], mfilename);
+end
+
+% Set up Input Parser Scheme
+iP = inputParser;
+iP.FunctionName = mfilename;
 
 %% Check arguments
 %%% TODO
@@ -39,3 +51,10 @@ elseif iscell(array)
         variable = array{1};
     end
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%{
+OLD CODE:
+
+%}

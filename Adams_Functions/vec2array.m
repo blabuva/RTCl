@@ -21,13 +21,17 @@ function array = vec2array (vector, dims)
 %% Deal with arguments
 % Check number of required arguments
 if nargin < 2
-    error('Not enough input arguments, type ''help vec2array'' for usage');
+    error(['Not enough input arguments, ', ...
+            'type ''help %s'' for usage'], mfilename);
 end
 
-% Add required inputs to an input Parser
+% Set up Input Parser Scheme
 iP = inputParser;
-addRequired(iP, 'vector', @isvector);            % a vector
-addRequired(iP, 'dims', ...                % dimensions for the output array
+iP.FunctionName = mfilename;
+
+% Add required inputs to an input Parser
+addRequired(iP, 'vector', @isvector);       % a vector
+addRequired(iP, 'dims', ...                 % dimensions for the output array
     @(x) validateattributes(x, {'numeric'}, {'vector', 'positive', 'integer'}));
 
 % Read from the input Parser
@@ -61,11 +65,5 @@ end
 
 %{
 OLD CODE:
-
-%        vector        - a numeric vector
-%                must be a numeric vector
-
-addRequired(iP, 'vector', ...                % a vector
-    @(x) validateattributes(x, {'numeric', 'cell', 'struct'}, {'vector'}));
 
 %}

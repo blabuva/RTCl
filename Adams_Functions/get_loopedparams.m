@@ -20,19 +20,34 @@ function [nump, pnames, plabels, pislog, pvalues, nperp, pchnames, pchvalues, nc
 % 2017-05-03 Renamed function get_loopparams -> get_loopedparams
 % 2017-05-03 Changed loopedparamsfile 'loopvariables.mat' -> 'loopedparams.mat'
 % 2017-05-04 Added loopedparamsfile_old for compatibility with old data
+% 2018-05-08 Changed tabs to spaces and limited width to 80
 
 %% Must be consistent with make_loopedparams.m & combine_loopparams.m
 loopedparamsfile = 'loopedparams.mat';
 loopedparamsfile_old = 'loopvariables.mat';
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Deal with arguments
+% Check number of required arguments
+if nargin < 1
+    error(['Not enough input arguments, ', ...
+            'type ''help %s'' for usage'], mfilename);
+end
+
+% Set up Input Parser Scheme
+iP = inputParser;
+iP.FunctionName = mfilename;
+
+% TODO: Add required inputs to an Input Parser
 
 %% Find the loopedparams.mat in infolder
 loopfiles = dirr(infolder, loopedparamsfile);
 loopfiles_old = dirr(infolder, loopedparamsfile_old);
 all_loopfiles = [loopfiles; loopfiles_old];
 if length(all_loopfiles) > 1
-    error('Too many versions of %s or %s!', loopedparamsfile, loopedparamsfile_old);
+    error('Too many versions of %s or %s!', ...
+            loopedparamsfile, loopedparamsfile_old);
 elseif length(all_loopfiles) < 1
     error('%s or %s is required!', loopedparamsfile, loopedparamsfile_old);
 else
@@ -46,23 +61,25 @@ pnames = m.pnames;
 plabels = m.plabels;
 pislog = m.pislog;
 ncells = m.ncells;
-if isempty(whos(m, 'actmode'))      % for compatibility with older versions of loopedparams.mat
+if isempty(whos(m, 'actmode'))
+                    % for compatibility with older versions of loopedparams.mat
     actmode = 1;
 else
     actmode = m.actmode;
 end
-if isempty(whos(m, 'loopmode'))     % for compatibility with older versions of loopedparams.mat
+if isempty(whos(m, 'loopmode'))
+                    % for compatibility with older versions of loopedparams.mat
     loopmode = 'cross';
 else
     loopmode = m.loopmode;
 end
 
 %% Compute nump
-nump = numel(pnames);               % number of parameters changed
+nump = numel(pnames);                   % number of parameters changed
 
 %% Extract pvalues if it exists and compute nperp
 % Otherwise, generate parameter values used from pmin, pmax, pinc
-if ~isempty(whos(m, 'pvalues'))    % pvalues already exists
+if ~isempty(whos(m, 'pvalues'))         % pvalues already exists
     % Extract pvalues and compute nperp
     pvalues = m.pvalues;
     nperp = cellfun(@length, pvalues);
@@ -72,7 +89,7 @@ if ~isempty(whos(m, 'pvalues'))    % pvalues already exists
         if ~isequal(nperp, m.nperp)
             error('Number of parameter values is inconsistent!');
         end
-    elseif ~isempty(whos(m, 'ntrperp'))     % older version of loopvariables.m
+    elseif ~isempty(whos(m, 'ntrperp')) % older version of loopvariables.m
         if ~isequal(nperp, m.ntrperp)
             error('Number of parameter values is inconsistent!');
         end
@@ -89,9 +106,11 @@ else                % pvalues don't exist yet
     for p = 1:nump
         
         if pislog(p)
-            pvalues{p} = exp(log(pmin(p)):log(pinc(p)):log(pmax(p)))';    % parameters used as a column vector
+            pvalues{p} = exp(log(pmin(p)):log(pinc(p)):log(pmax(p)))';
+                                            % parameters used as a column vector
         else
-            pvalues{p} = (pmin(p):pinc(p):pmax(p))';            % parameters used as a column vector
+            pvalues{p} = (pmin(p):pinc(p):pmax(p))';
+                                            % parameters used as a column vector
         end
         nperp(p) = length(pvalues{p});
     end
@@ -103,7 +122,7 @@ end
 
 %% Store parameter names and values for each file (to keep things in order)
 if ~isempty(whos(m, 'pchnames')) && ...
-    ~isempty(whos(m, 'pchvalues'))    % pchnames & pchvalues already exist
+    ~isempty(whos(m, 'pchvalues'))  % pchnames & pchvalues already exist
     % Extract pchnames & pchvalues
     pchnames = m.pchnames;          % changed parameter name for each file
     pchvalues = m.pchvalues;        % changed parameter value for each file
@@ -115,24 +134,29 @@ else
         pchvalues = zeros(1, nfiles);   % changed parameter value for each file
         ct = 0;                         % counts number of files used
         for p = 1:nump
-            % Store parameter names and values for each file (to keep things in order)
+            % Store parameter names and values for each file 
+            %   (to keep things in order)
             indices = (ct + 1):(ct + nperp(p));     % indices for this parameter
             pchnames(indices) = repmat(pnames(p), 1, length(indices));
-            pchvalues(indices) = pvalues{p}';
+            pchvalues(indices) = (pvalues{p})';
 
             % Update count of number of files used
             ct = ct + nperp(p);
         end
     case 'grid'
         % Repeat each parameter name nperp times
-        pnames_rep = cell(1, nump);     % stores each parameter name repeated nperp times
+        pnames_rep = cell(1, nump);
+                            % stores each parameter name repeated nperp times
         for p = 1:nump
             pnames_rep{p} = repmat(pnames(p), nperp(p), 1);
         end
 
         % Construct all possible ordered pairs of values and corresponding names
-        pchvalues = all_ordered_pairs(pvalues);     % a cell array of all ordered pairs
-        pchnames = all_ordered_pairs(pnames_rep);   % a cell array of ordered pairs of corresponding parameter names
+        pchvalues = all_ordered_pairs(pvalues);
+                                            % a cell array of all ordered pairs
+        pchnames = all_ordered_pairs(pnames_rep);
+                                            % a cell array of ordered pairs of 
+                                            %   corresponding parameter names
     end    
 
     % Save pchnames & pchvalues
@@ -140,5 +164,9 @@ else
     m.pchvalues = pchvalues;
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%{
+OLD CODE:
+
+%}

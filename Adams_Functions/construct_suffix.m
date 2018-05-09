@@ -25,8 +25,11 @@ function [finalSuffix] = construct_suffix (varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Deal with arguments
-% Add parameter-value pairs to the input Parser
+% Set up Input Parser Scheme
 iP = inputParser;
+iP.FunctionName = mfilename;
+
+% Add parameter-value pairs to the input Parser
 addParameter(iP, 'Suffices', '', ...
     @(x) assert(ischar(x) || iscell(x) && (min(cellfun(@ischar, x)) || ...
                 min(cellfun(@isstring, x))) || isstring(x), ...
@@ -125,6 +128,5 @@ end
 
 %{
 OLD CODE:
-
 
 %}

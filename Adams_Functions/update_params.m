@@ -54,8 +54,11 @@ if nargin < 2
             'type ''help %s'' for usage'], mfilename);
 end
 
-% Add required inputs to an input Parser
+% Set up Input Parser Scheme
 iP = inputParser;
+iP.FunctionName = mfilename;
+
+% Add required inputs to an input Parser
 addRequired(iP, 'paramnames', ...
     @(x) assert(iscell(x) && ...
                 (min(cellfun(@ischar, x)) || min(cellfun(@isstring, x))), ...

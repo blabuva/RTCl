@@ -45,8 +45,8 @@ function strValidated = validate_string (str, validStrings, varargin)
 %
 
 %% Default values for optional arguments
-ValidateModeDefault = false;            % whether to throw error if not a match
-MatchModeDefault = 'substring';         % default matching mode
+validateModeDefault = false;            % whether to throw error if not a match
+matchModeDefault = 'substring';         % default matching mode
 ignoreCaseDefault = true;               % whether to ignore case by default
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -73,9 +73,9 @@ addRequired(iP, 'validStrings', ...             % text to match
                 'of strings or character arrays!']));
 
 % Add parameter-value pairs to the Input Parser
-addParameter(iP, 'ValidateMode', ValidateModeDefault, ...
+addParameter(iP, 'ValidateMode', validateModeDefault, ...
     @(x) validateattributes(x, {'logical', 'numeric'}, {'binary'}));
-addParameter(iP, 'MatchMode', MatchModeDefault, ...     % matching mode
+addParameter(iP, 'MatchMode', matchModeDefault, ...     % matching mode
     @(x) any(validatestring(x, {'exact', 'substring'})));
 addParameter(iP, 'IgnoreCase', ignoreCaseDefault, ...   % whether to ignore case
     @(x) validateattributes(x, {'logical', 'numeric'}, {'binary'}));

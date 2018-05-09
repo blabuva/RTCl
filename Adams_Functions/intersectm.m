@@ -25,6 +25,12 @@ if nargin < 1
             'type ''help %s'' for usage'], mfilename);
 end
 
+% Set up Input Parser Scheme
+iP = inputParser;
+iP.FunctionName = mfilename;
+
+% TODO: Add required inputs to an Input Parser
+
 if isempty(arrays)
     error('Argument cannot be empty!');
 end
@@ -43,3 +49,10 @@ if numarrays > 1
         intersection = intersect(intersection, arrays{k});
     end
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%{
+OLD CODE:
+
+%}

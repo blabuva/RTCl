@@ -31,6 +31,9 @@ function cellArray = vec2cell (vecORarray, classVector, varargin)
 % 2018-01-30 MD - changed strings, put valid strings, check valid strings           
 % 
 
+%% Hard-coded parameters
+validOrders = {'sorted', 'stable'};
+
 %% Default values for optional arguments
 setOrderDefault  = 'sorted';                   
 
@@ -39,14 +42,13 @@ setOrderDefault  = 'sorted';
 %% Deal with arguments
 % Check number of required arguments
 if nargin < 2
-    error('Not enough input arguments, type ''help vec2cell'' for usage');
+    error(['Not enough input arguments, ', ...
+            'type ''help %s'' for usage'], mfilename);
 end
 
 % Set up Input Parser Scheme
 iP = inputParser;
-defaultOrder = 'sorted';
-validOrders = {'sorted','stable'};
-checkOrder = @(x) any(validatestring(x,validOrders));
+iP.FunctionName = mfilename;
 
 % Add required inputs to an Input Parser
 addRequired(iP, 'vecORarray', ...       % vector(s) to reorganize
@@ -56,11 +58,11 @@ addRequired(iP, 'classVector', ...      % vector of classes of each element
 
 % Add parameter-value pairs to the Input Parser
 addParameter(iP, 'SetOrder', setOrderDefault, ...
-    @(x) any(validatestring(x, {'sorted', 'stable'})));
+    @(x) any(validatestring(x, validOrders)));
 
 % Read from the Input Parser
 parse(iP, vecORarray, classVector, varargin{:});
-setOrder = validatestring(iP.Results.SetOrder, {'sorted', 'stable'});
+setOrder = validatestring(iP.Results.SetOrder, validOrders);
 
 % Check relationships between arguments
 if size(vecORarray, 1) ~= length(classVector)
