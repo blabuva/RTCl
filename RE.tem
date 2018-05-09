@@ -87,27 +87,34 @@ proc init() { local L_total
 // $6 = leak reversal potential (mV) (REepas)
 // $7 = diameter of an RE cell (REdiam)
 
-    L_total = 2*$7            // length (um) of soma, based on neuron in Yen et al 1985 (p. 1252 of Thalamus book)
+    // Compute length (um) of soma, based on neuron in Yen et al 1985 
+    //  (p. 1252 of the Thalamus book by Edward Jones, 2007)
+    L_total = 2*$7            
 
-    /* Soma: total length = 70 um; total surface area = 15393 um2 = 0.000154 cm2 */
+    /* Soma: total length = 70 um; 
+                            total surface area = 15393 um2 = 0.000154 cm2 */
     soma {
         if ($4) {
             L = 0.26    // length (um) of center compartment
-                    // based on the length of synaptic contact seen on EM, Hallanger & Wainer 1988
-                    // the maximum length of synaptic contact zone in Cucchiaro et al 1991 is 0.5 um
-            nseg = 1    // number of segments for the soma is always 1 in this case
+                        // based on the length of synaptic contact seen on EM, 
+                        //  Hallanger & Wainer 1988
+                        // the maximum length of synaptic contact zone 
+                        //  in Cucchiaro et al 1991 is 0.5 um
+            nseg = 1    // number of segments for the soma is always 1 
+                        //  in this case
         } else {
-            L = L_total    // only one soma
-            nseg = $1    // number of segments of the soma is the same for the entire cell
+            L = L_total // only one soma
+            nseg = $1   // number of segments of the soma is the 
+                        //  same for the entire cell
         }
     }
 
     if ($4) {
         for j=0,1 {
             soma_flank[j] {
-                L = (L_total-soma.L)/2    // length (um) of left compartment
+                L = (L_total - soma.L) / 2  // length (um) of left compartment
                 if ($1 >= 3) {
-                    nseg = ($1-1)/2        // number of segments
+                    nseg = ($1 - 1) / 2     // number of segments
                 } else {
                     nseg = 1
                 }
@@ -122,78 +129,91 @@ proc init() { local L_total
     /* Define other geometry and insert mechanisms for all sections */
     forall {
         /* Define geometry */
-        diam = $7        // diameter (um), based on neuron in Yen et al 1985 (p. 1252 of Thalamus book)
+        diam = $7   // diameter (um), based on neuron in Yen et al 1985 
+                    //  (p. 1252 of the Thalamus book by Edward Jones, 2007)
 
         /* Set passive properties */
-        cm = 1            // specific capacitance (uF/cm2)
-        Ra = 100        // axial resistivity (Ohm-cm), Destexhe's value 
-                    //     Jedlicka et al 2011 used 150 Ohm-cm, but it doesn't seem to matter
+        cm = 1      // specific capacitance (uF/cm2)
+        Ra = 100    // axial resistivity (Ohm-cm), Destexhe's value 
+                    //      Jedlicka et al 2011 used 150 Ohm-cm, 
+                    //      but it doesn't seem to matter
 
         /* Insert leak current */
         insert pas        
-        e_pas = $6        // leak reversal potential (mV) of RE cells, Peter's value
+        e_pas = $6  // leak reversal potential (mV) of RE cells, Peter's value
                     // Sohal & Huguenard 2003 used -77 mV
                     // Jedlicka et al 2011 used -60 mV
-        g_pas = 5e-5        // leak conductance (S/cm^2)
-                    // In Sohal & Huguenard 2003, this is uniformly randomized from (4.5~5.5)e-5
+        g_pas = 5e-5// leak conductance (S/cm^2)
+                    // In Sohal & Huguenard 2003, 
+                    //  this is uniformly randomized from (4.5~5.5)e-5
 
         /* Insert Hodgin-Huxley Na+ and K+ current */
-        insert hh2        // READ ena, ek WRITE ina, ik
+        insert hh2      // READ ena, ek WRITE ina, ik
         ena = 50        // Na+ reversal potential (mV), Sohal & Huguenard 2003
-        ek = -104        // K+ reversal potential (mV), Peter's value 
-                    //     (based on [K]out = 2.5 mM, [K]in = 124 mM & celsius = 31 degC)
-        vtraub_hh2 = -47    // action potential threshold (mV), TODO: Source (Destexhe used -55 mV)
-        gnabar_hh2 = 0.05    // Na+ conductance (S/cm2), Sohal & Huguenard 2003
-        gkbar_hh2 = 0.005    // K+ conductance (S/cm2), Sohal & Huguenard 2003
+        ek = -104       // K+ reversal potential (mV), Peter's value 
+                        //     (based on [K]out = 2.5 mM, 
+                        //      [K]in = 124 mM & celsius = 31 degC)
+        vtraub_hh2 = -47    // action potential threshold (mV), 
+                            //  TODO: Source (Destexhe used -55 mV)
+        gnabar_hh2 = 0.05   // Na+ conductance (S/cm2), Sohal & Huguenard 2003
+        gkbar_hh2 = 0.005   // K+ conductance (S/cm2), Sohal & Huguenard 2003
 
         /* Insert low-threshold Ca++ current */
-        insert Ts        // READ cai, cao WRITE ica
+        insert Ts       // READ cai, cao WRITE ica
         if ($2) {
             pcabar_Ts = 1e-4    // Ca++ permeability (cm/s) for T channels
         } else {
-            pcabar_Ts = 0        // Ca++ permeability (cm/s) for T channels
+            pcabar_Ts = 0       // Ca++ permeability (cm/s) for T channels
         }
 
         /* Insert Ca-dependent K+ current */
-        insert kca        // READ cai, ek WRITE ik
+        insert kca      // READ cai, ek WRITE ik
         if ($2) {
-            gbar_kca = 1.5e-3    // [Ca++]i-dependent K+ conductance (mho/cm2 mM), Sohal & Huguenard 2003
+            gbar_kca = 1.5e-3   // [Ca++]i-dependent K+ conductance 
+                                //  (mho/cm2 mM), Sohal & Huguenard 2003
         } else {
-            gbar_kca = 0        // [Ca++]i-dependent K+ conductance (mho/cm2 mM), Sohal & Huguenard 2003
+            gbar_kca = 0        // [Ca++]i-dependent K+ conductance 
+                                //  (mho/cm2 mM), Sohal & Huguenard 2003
         }
 
         /* Insert submembranal Ca++ pump */
-        insert cad        // READ ica, cai WRITE cai
-        depth_cad = 0.1        // depth of shell for Ca++ (um)
-        taur_cad = 24        // Ca++ removal time constant (ms), Sohal & Huguenard 2003
-        cainf_cad = 2.4e-4    // steady state intracellular [Ca++] (mM)
+        insert cad      // READ ica, cai WRITE cai
+        depth_cad = 0.1         // depth of shell for Ca++ (um)
+        taur_cad = 24           // Ca++ removal time constant (ms), 
+                                //  Sohal & Huguenard 2003
+        cainf_cad = 2.4e-4      // steady state intracellular [Ca++] (mM)
 
         /* Insert submembranal Cl- concentration */
         if ($3 == 0) {
-            insert cld        // READ cli, icl WRITE cli
-            depth_cld = 0.1        // depth of shell for Cl- (um)
+            insert cld  // READ cli, icl WRITE cli
+            depth_cld = 0.1     // depth of shell for Cl- (um)
             tauKCC2_cld = $5    // Cl- removal time constant (ms), Peter's value 
-                        // (Jedlicka et al 2011 used 3000 ms)
-            clinf_cld = 8        // steady state intracellular [Cl-] (mM)
+                                // (Jedlicka et al 2011 used 3000 ms)
+            clinf_cld = 8       // steady state intracellular [Cl-] (mM)
         } else if ($3 == 1) {
-            insert cld1        // READ cli, icl WRITE cli
-            depth_cld1 = 0.1    // relative depth of shell (to diameter) for Cl-,
-                        //     this gives 0.5 um for a cell of diameter 5 um
-            DCl_cld1 = 2        // Cl- diffusion coefficient (um2/ms), Brumback & Staley 2008
-                        // also Kuner & Augustine 2000, Neuron 27: 447
-            tauKCC2_cld1 = $5    // Cl- removal time constant (ms), Peter's value 
-                        // (Jedlicka et al 2011 used 3000 ms)
-            clinf_cld1 = 8        // steady state intracellular [Cl-] (mM)
+            insert cld1 // READ cli, icl WRITE cli
+            depth_cld1 = 0.1    // relative depth of shell (to diameter) 
+                                //      for Cl-, this gives 0.5 um for 
+                                //      a cell of diameter 5 um
+            DCl_cld1 = 2        // Cl- diffusion coefficient (um2/ms), 
+                                //  Brumback & Staley 2008
+                                //  also Kuner & Augustine 2000, Neuron 27: 447
+            tauKCC2_cld1 = $5   // Cl- removal time constant (ms), Peter's value 
+                                // (Jedlicka et al 2011 used 3000 ms)
+            clinf_cld1 = 8      // steady state intracellular [Cl-] (mM)
         } else if ($3 == 2) {
-            insert cld2        // READ cli, icl WRITE cli
+            insert cld2 // READ cli, icl WRITE cli
             depth_cld2 = 0.1    // relative depth of shell (to diameter) for Cl-
-                        //     this gives 0.5 um for a cell of diameter 5 um
-            DCl_cld2 = 2        // Cl- diffusion coefficient (um2/ms), Brumback & Staley 2008
-                        // also Kuner & Augustine 2000, Neuron 27: 447
-            tauKCC2_cld2 = $5    // Cl- removal time constant (ms), Peter's value 
-                        // (Jedlicka et al 2011 used 3000 ms)
-            clinf_cld2 = 8        // steady state intracellular [Cl-] (mM)
-            Kd_cld2 = 15        // [Cl-] for half-maximum flux for KCC2 (mM), Staley & Proctor 1999
+                                //  this gives 0.5 um for a cell 
+                                //  of diameter 5 um
+            DCl_cld2 = 2        // Cl- diffusion coefficient (um2/ms), 
+                                //  Brumback & Staley 2008
+                                //  also Kuner & Augustine 2000, Neuron 27: 447
+            tauKCC2_cld2 = $5   // Cl- removal time constant (ms), Peter's value 
+                                // (Jedlicka et al 2011 used 3000 ms)
+            clinf_cld2 = 8      // steady state intracellular [Cl-] (mM)
+            Kd_cld2 = 15        // [Cl-] for half-maximum flux for KCC2 (mM), 
+                                //  Staley & Proctor 1999
         }
     }
 

@@ -59,7 +59,7 @@ ASSIGNED {
     dt              (ms)
 
     : GLOBAL variables that are assigned in the INITIAL block
-    tadj            (1)        : temperature adjustion to time constants
+    tadj            (1)         : temperature adjustion to time constants
 
     : RANGE variables that are assigned in the INITIAL & DERIVATIVE blocks
     m_inf           (1)

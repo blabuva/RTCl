@@ -18,7 +18,8 @@ COMMENT
     2017-03-15 Made drive_channel & drive_extrusion RANGE variables
     2017-03-15 Forced drive_extrusion to be negative instead
     2017-03-31 Changed units of tauKCC2 to seconds
-    2018-05-09 Changed tabs to spaces
+    2018-05-09 Changed tabs to spaces and set column width at 80
+    2018-05-09 Improved comments
 
 ENDCOMMENT
 
@@ -32,7 +33,7 @@ NEURON {
 }
 
 UNITS {
-    (molar) = (1/liter)         : moles do not appear in units
+    (molar) = (1/liter)     : moles do not appear in units
     (mM)    = (millimolar)
     (um)    = (micron)
     (mA)    = (milliamp)
@@ -42,10 +43,10 @@ UNITS {
 
 PARAMETER {
     : RANGE variables whose values are specified in hoc
-    depth   = .1    (um)        : depth of shell for Cl- (um)
-    tauKCC2 = 30    (s)         : Cl- removal time constant (s), 
-                                :   Peter's value (Jedlicka et al 2011 used 3 s)
-    clinf   = 8     (mM)        : steady state intracellular [Cl-] (mM)
+    depth   = .1    (um)    : depth of shell for Cl- (um)
+    tauKCC2 = 30    (s)     : Cl- removal time constant (s), Peter's value
+                            :   (Jedlicka et al 2011 used 3 s)
+    clinf   = 8     (mM)    : steady state intracellular [Cl-] (mM)
 }
 
 ASSIGNED {
@@ -53,12 +54,12 @@ ASSIGNED {
     icl             (mA/cm2)
 
     : RANGE variables that are assigned in the DERIVATIVE block
-    drive_channel   (mM/ms)     : driving Cl- flux (mM/ms) due to channel opening
-    drive_extrusion (mM/ms)     : driving Cl- flux (mM/ms) due to leak/extrusion
+    drive_channel   (mM/ms) : driving Cl- flux (mM/ms) due to channel opening
+    drive_extrusion (mM/ms) : driving Cl- flux (mM/ms) due to leak/extrusion
 }
     
 STATE {
-    cli             (mM)        : intracellular [Cl-] (mM)
+    cli             (mM)    : intracellular [Cl-] (mM)
 }
 
 BREAKPOINT {
@@ -66,15 +67,14 @@ BREAKPOINT {
 }
 
 DERIVATIVE state { 
-
     : Calculate driving flux due to channel opening
     drive_channel = - (10000) * icl / ((-1) * FARADAY * depth)
 
     : Calculate driving flux due to leak/extrusion
-    drive_extrusion = (clinf-cli)/(tauKCC2*(1000))
+    drive_extrusion = (clinf - cli) / (tauKCC2 * (1000))
 
     : Calculate change in chloride concentration
-    cli' = drive_channel + (clinf-cli)/(tauKCC2*(1000))
+    cli' = drive_channel + (clinf - cli) / (tauKCC2 * (1000))
 }
 
 COMMENT

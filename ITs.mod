@@ -50,52 +50,55 @@ NEURON {
 
 UNITS {
     (molar) = (1/liter)
-    (mV) =    (millivolt)
-    (mA) =    (milliamp)
-    (mM) =    (millimolar)
-    FARADAY    = (faraday) (coulombs)
-    R    = (k-mole) (joule/degC)
+    (mV)    = (millivolt)
+    (mA)    = (milliamp)
+    (mM)    = (millimolar)
+    FARADAY = (faraday) (coulombs)
+    R       = (k-mole) (joule/degC)
 }
 
 PARAMETER {
     : GLOBAL variables whose values are specified in hoc
-    qm    = 2.5    (1)        : q10 for T channel activation
-    qh     = 2.5    (1)        : q10 for T channel inactivation
+    qm      = 2.5   (1)     : q10 for T channel activation
+    qh      = 2.5   (1)     : q10 for T channel inactivation
 
     : RANGE variables whose values are specified in hoc
-    pcabar    = 1e-4  (cm/s)        : Ca++ permeability (cm/s) for T channels
+    pcabar  = 1e-4  (cm/s)  : Ca++ permeability (cm/s) for T channels
 }
 
 ASSIGNED {
     : Variables that are assigned outside the mod file
-    v        (mV)
-    celsius        (degC)
-    cai        (mM)        : intracellular [Ca++] (mM)
-    cao        (mM)        : exftracellular [Ca++] (mM)
+    v               (mV)
+    celsius         (degC)
+    cai             (mM)    : intracellular [Ca++] (mM)
+    cao             (mM)    : exftracellular [Ca++] (mM)
 
     : GLOBAL variables that are assigned in the INITIAL block
-    phi_m        (1)        : temperature adjustion to tau_m
-    phi_h        (1)        : temperature adjustion to tau_h
-    coeff        (1/mV)        : zF/RT, which is about 1/(13 mV) at 34 degC
+    phi_m           (1)     : temperature adjustion to tau_m
+    phi_h           (1)     : temperature adjustion to tau_h
+    coeff           (1/mV)  : zF/RT, which is about 1/(13 mV) at 34 degC
 
     : RANGE variables that are assigned in the INITIAL block
-    gpc        (mho/cm2 mM)    : conductance per unit concentration (mho/cm2 mM) (permeability times (zF)^2/RT)
-                    : for pcabar = 1e-4 cm/s, we have gpc = 0.0015 mho/cm2 mM at 34 degC
-                    : which for cao = 2 mM means a conductance of about g = 0.003 mho/cm2
+    gpc         (mho/cm2 mM): conductance per unit concentration (mho/cm2 mM) 
+                            :   (permeability times (zF)^2/RT)
+                            :   For pcabar = 1e-4 cm/s, we have
+                            :       gpc = 0.0015 mho/cm2 mM at 34 degC
+                            :   which for cao = 2 mM means a conductance 
+                            :       of about g = 0.003 mho/cm2
 
     : RANGE variables that are assigned in the INITIAL & DERIVATIVE blocks
-     m_inf        (1)
-    h_inf        (1)
-    tau_m        (ms)
-    tau_h        (ms)
+    m_inf           (1)
+    h_inf           (1)
+    tau_m           (ms)
+    tau_h           (ms)
 
     : RANGE variables that are assigned in the BREAKPOINT block
-    ica        (mA/cm2)    : calcium current (mA/cm2) through the T channel
+    ica             (mA/cm2): calcium current (mA/cm2) through the T channel
 }
 
 STATE {
-    m        (1)        : activation gate
-    h        (1)        : inactivation gate
+    m               (1)     : activation gate
+    h               (1)     : inactivation gate
 }
 
 INITIAL {
@@ -105,17 +108,19 @@ INITIAL {
 : Transformation to celsius using Q10 (qm & qh)
 :
 
-    : Calculate constants from temperature
+    : Compute constants from temperature
     phi_m = qm ^ ((celsius-24 (degC))/10 (degC))
     phi_h = qh ^ ((celsius-24 (degC))/10 (degC))
-    coeff = (1e-3)*2*FARADAY/(R*(273.15 (degC) + celsius))            : conversion factor (1e-3 V/mV)
+    coeff = (1e-3)*2*FARADAY/(R*(273.15 (degC) + celsius))
+                                            : conversion factor (1e-3 V/mV)
 
-    : Calculate gpc from temperature & pcabar
-    gpc = pcabar*(1e-6)*((2*FARADAY)^2)/(R*(273.15 (degC) + celsius))    : conversion factor (1e-6 ML/cm3)
+    : Compute gpc from temperature & pcabar
+    gpc = pcabar*(1e-6)*((2*FARADAY)^2)/(R*(273.15 (degC) + celsius))
+                                            : conversion factor (1e-6 ML/cm3)
 
     : Initialize variables
-    ica = 0                : no current in the beginning %%% TO EXAMINE
-    evaluate_fct(v)            : calculate m_inf & h_inf
+    ica = 0                 : no current in the beginning
+    evaluate_fct(v)         : calculate m_inf & h_inf
     m = m_inf
     h = h_inf
 }
@@ -124,8 +129,8 @@ BREAKPOINT { LOCAL tmp
     : Update gating variables m & h from voltage v
     SOLVE castate METHOD cnexp
 
-    : Calculate calcium current ica from m, h, cai, cao, v
-    if ((v > .1) || (v < -1)) {                    : %%% why not v < -.1?
+    : Compute calcium current ica from m, h, cai, cao, v
+    if ((v > .1) || (v < -1)) {
         tmp = exp(-coeff*v)
         ica = m*m*h * gpc * (cai - cao*tmp)/(1 - tmp) * v
     } else {
@@ -159,33 +164,6 @@ UNITSON
 
 COMMENT
 OLD CODE:
-
-INDEPENDENT {t FROM 0 TO 1 WITH 1 (ms)}    : not necessary in NEURON
-
-    gcabar    = .003    (mho/cm2)
-
-    FARADAY = 96520 (coul)
-    celsius    = 37    (degC)
-    FARADAY = 96485.3329    (coul)        : moles do not appear in units
-    R = 8.314 (V coul / degC)
-
-    cai    = 2.4e-4 (mM)        : adjusted for eca=120 mV    : this is ignored and set by hoc
-    cao    = 2    (mM)                        : this is ignored and set by hoc
-
-     GLOBAL P, qm, qh, coeff, p
-    GLOBAL P, qm, qh
-
-    SOLVE castate METHOD euler                : "NOT THREAD SAFE"
-
-     P = P/(.0029 (cm2))
-    P    = .0067    (mho/cm2 mM)        : permeability times (zF)^2/RT
-
-        ica = m*m*h*P*R*(celsius+273 (degC))*(cai-cao*tmp)    : %%% Units are wrong, to understand
-
-    coeff = (.001)*2*FARADAY/(R*(273 (degC) + celsius))
-     p    = 1.8e-8    (cm3/s)    : permeability of T channels %%% Wrong units ???
-    P = p*4*(FARADAY^2)/(R*(273 (degC) + celsius))            : permeability times (zF)^2/RT
-
 
 ENDCOMMENT
 

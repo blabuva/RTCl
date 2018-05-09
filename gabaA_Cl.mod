@@ -3,7 +3,8 @@ TITLE GABAergic conductance with changing Cl- concentration
 COMMENT
 
     Synaptic GABAergic mechanism 
-    Two state kinetic scheme synapse described by rise time Trise and decay time constant Tfall. 
+    Two state kinetic scheme synapse described by rise time Trise 
+        and decay time constant Tfall. 
     Decay time Tfall MUST be greater than rise time Trise.
 
     Conductances from each event are added up linearly.
@@ -12,7 +13,8 @@ COMMENT
 
     Reversal potential Egaba is changing according to [Cl-]i change 
     (due to Cl- influx, which we hypothesize to be significant).
-    Bicarbonate (HCO3) flows through the GABAR too, and therefore Egaba is also [HCO3]i/[HCO3]o -dependent
+    Bicarbonate (HCO3) flows through the GABAR too, and therefore Egaba 
+        is also [HCO3]i/[HCO3]o -dependent
     igaba = icl + ihco3 (we assume icl and ihco3 to be mutually independent)
 
     The solution of A->G->bath with rate constants 1/Trise and 1/Tfall is
@@ -20,7 +22,8 @@ COMMENT
         G = a*Tfall/(Tfall-Trise)*(-exp(-t/Trise) + exp(-t/Tfall))
     where Trise < Tfall
 
-    If Tfall-Trise -> 0 then we have an alphasynapse (proportional to t*exp(-t/T))
+    If Tfall-Trise -> 0 then we have an alphasynapse 
+        (proportional to t*exp(-t/T))
     and if Trise -> 0 then we have just single exponential decay.
     
     Because the solution is a sum of exponentials, the coupled equations 
@@ -29,20 +32,23 @@ COMMENT
 
     2017-02-20 Adapted from Jedlicka et al 2011
     2017-02-22 Changed name of POINT_PROCESS to gabaaCl
-    2017-02-22 Changed celsius to 34 to be consistent with Sohal & Huguenard 2003
+    2017-02-22 Changed celsius to 34 to be consistent with 
+                Sohal & Huguenard 2003
     2017-02-22 Renamed tau1 & tau2 as Trise & Tfall
     2017-03-04 Added gpeak and changed the units for g, A, B, total, weight
     2017-03-04 Changed total from GLOBAL to RANGE
     2017-03-05 Moved some variables from PARAMETER to ASSIGNED
-    2018-05-09 Changed tabs to spaces
+    2018-05-09 Changed tabs to spaces and set column width at 80
+    2018-05-09 Improved comments
 
 ENDCOMMENT
 
 NEURON {
     POINT_PROCESS gabaaCl
 
-    USEION cl READ ecl WRITE icl VALENCE -1        : this icl is distributed across the section (mA/cm2); 
-                            : VALENCE is necessary for calculating ecl
+    USEION cl READ ecl WRITE icl VALENCE -1
+                        : this icl is distributed across the section (mA/cm2)
+                        : VALENCE is necessary for calculating ecl
     NONSPECIFIC_CURRENT ihco3
 
     RANGE Trise, Tfall, grel, HCO3e
@@ -52,7 +58,7 @@ NEURON {
     RANGE ehco3
 
     RANGE total
-    RANGE g, icl, ihco3, i, e            : this icl is the instantaneous current (nA)
+    RANGE g, icl, ihco3, i, e   : this icl is the instantaneous current (nA)
 }
 
 UNITS {    
@@ -61,66 +67,79 @@ UNITS {
     (mV)    = (millivolt)
     (uS)    = (micromho)
     (mM)    = (milli/liter)
-    F    = (faraday) (coulombs)
-    R    = (k-mole) (joule/degC)
+    F       = (faraday) (coulombs)
+    R       = (k-mole) (joule/degC)
 }
 
 PARAMETER {
     : GLOBAL variables whose values are specified in hoc
-    Trise    = .1    (ms)    <1e-9, 1e9>    : rising phase time constant (ms) of the GABA-A conductance
-    Tfall    = 10    (ms)    <1e-9, 1e9>    : falling phase time constant (ms) of the GABA-A conductance
-    grel    = 0.18    (1)            : relative conductance of HCO3 at the GABA-A receptor
-    HCO3e   = 26    (mM)            : extracellular [HCO3-] (mM), Peter's value (agrees with Jedlicka et al 2011)
+    Trise   = .1    (ms)    <1e-9, 1e9>     : rising phase time constant (ms) 
+                                            :   of the GABA-A conductance
+    Tfall   = 10    (ms)    <1e-9, 1e9>     : falling phase time constant (ms) 
+                                            :   of the GABA-A conductance
+    grel    = 0.18  (1)     : relative conductance of HCO3 
+                            :   at the GABA-A receptor
+    HCO3e   = 26    (mM)    : extracellular [HCO3-] (mM), Peter's value
+                            :   (agrees with Jedlicka et al 2011)
 
     : RANGE variables whose values are specified in hoc
-    HCO3i   = 16    (mM)            : intracellular [HCO3-] (mM), Jedlicka et al 2011
-    gpeak    = 0    (uS)            : peak conductance (uS) per event at the GABA-A receptor
+    HCO3i   = 16    (mM)    : intracellular [HCO3-] (mM), 
+                            :   Jedlicka et al 2011
+    gpeak   = 0     (uS)    : peak conductance (uS) per event 
+                            :   at the GABA-A receptor
 
 }
 
 ASSIGNED {
     : Variables that are assigned outside the mod file
-    v    (mV)        : postsynaptic voltage (degC)
-    celsius    (degC)        : temperature (degC)
-    ecl    (mV)        : reversal potential (mV) for Cl-, calculated automatically by NEURON from cli & clo
+    v               (mV)    : postsynaptic voltage (degC)
+    celsius         (degC)  : temperature (degC)
+    ecl             (mV)    : reversal potential (mV) for Cl-, calculated 
+                            :   automatically by NEURON from cli & clo
 
     : GLOBAL variables that are assigned in the INITIAL block
-    factor    (1)        : normalization factor for the GABA-A conductance
+    factor          (1)     : normalization factor for the GABA-A conductance
 
     : RANGE variables that are assigned in the INITIAL block
-    ehco3    (mV)        : reversal potential (mV) for HCO3-
+    ehco3           (mV)    : reversal potential (mV) for HCO3-
 
     : RANGE variables that are assigned in the NET_RECEIVE block
-    total    (1)        : total weight received by this GABA-A receptor
+    total           (1)     : total weight received by this GABA-A receptor
 
     : RANGE variables that are assigned in the BREAKPOINT block
-    g     (uS)        : total conductance (uS), split between bicarb (grel*g)
-                : and chloride ((1-grel)*g)
-    icl    (nA)        : chloride current (nA) = (1-grel)*g*(v - ecl)
-    ihco3    (nA)        : bicarb current (nA) = grel*g*(v - ehco3)
-    i    (nA)        : total current (nA) generated by this mechanism = icl + ihco3
-    e    (mV)        : reversal potential (mV) for GABA-A receptor
+    g               (uS)    : total conductance (uS), split between 
+                            :   bicarb (grel*g)and chloride ((1-grel)*g)
+    icl             (nA)    : chloride current (nA) = (1-grel)*g*(v - ecl)
+    ihco3           (nA)    : bicarb current (nA) = grel*g*(v - ehco3)
+    i               (nA)    : total current (nA) generated by this mechanism
+                            :   = icl + ihco3
+    e               (mV)    : reversal potential (mV) for GABA-A receptor
 
 }
 
 STATE {
-    A    (uS)        : the rising phase
-    B    (uS)        : the falling phase
+    A               (uS)    : the rising phase
+    B               (uS)    : the falling phase
 }
 
 INITIAL { LOCAL tp
-
-    : If Trise is set to be greater or equal to Tfall, set Trise to be a little less than Tfall
+    : If Trise is set to be greater or equal to Tfall, 
+    :   set Trise to be a little less than Tfall
     if (Trise/Tfall > .9999) {
         Trise = .9999 * Tfall
     }
 
-    : Calculate normalization factor from Trise & Tfall
-    tp = (Trise * Tfall) / (Tfall - Trise) * log(Tfall/Trise)    : t at which exp(-t/Tfall)-exp(-t/Trise) reaches maximum
-    factor = exp(-tp/Tfall)    - exp(-tp/Trise)        : maximum value of exp(-t/Tfall)-exp(-t/Trise)
-    factor = 1/factor                    : normalization factor for exp(-t/Tfall)-exp(-t/Trise)
+    : Compute normalization factor from Trise & Tfall
+    : Compute t at which exp(-t/Tfall) - exp(-t/Trise) reaches maximum
+    tp = (Trise * Tfall) / (Tfall - Trise) * log(Tfall/Trise)
+    
+    : Compute maximum value of exp(-t/Tfall) - exp(-t/Trise)
+    factor = exp(-tp/Tfall) - exp(-tp/Trise)
 
-    : Calculate ehco3 from temperature and hco3 concentrations
+    : Compute normalization factor for exp(-t/Tfall) - exp(-t/Trise)
+    factor = 1/factor
+
+    : Compute ehco3 from temperature and hco3 concentrations
     ehco3 = log(HCO3i/HCO3e)*(1000)*(celsius + 273.15)*R/F
 
     : Initialize variables
@@ -134,20 +153,20 @@ INITIAL { LOCAL tp
 }
 
 BREAKPOINT {
-    : Calculate rising and falling phases of the total conductance
+    : Compute rising and falling phases of the total conductance
     SOLVE state METHOD cnexp
 
-    : Calculate the total conductance
+    : Compute the total conductance
     g = B - A
 
-    : Calculate the chloride and bicarbonate currents
+    : Compute the chloride and bicarbonate currents
     icl = (1-grel) * g * (v-ecl)
     ihco3 = grel * g * (v-ehco3)
 
-    : Calculate the total current through the receptor
+    : Compute the total current through the receptor
     i = icl + ihco3
 
-    : Calculate the reversal potential of the receptor
+    : Compute the reversal potential of the receptor
     e = grel * ehco3 + (1-grel) * ecl
 
 }
@@ -158,9 +177,14 @@ DERIVATIVE state {
 }
 
 NET_RECEIVE(weight (1)) {
-    A = A + weight * factor * gpeak        : add the contribution of this synapse to the rising phase
-    B = B + weight * factor * gpeak        : add the contribution of this synapse to the falling phase
-    total = total + weight            : increment the total weight received by this synapse
+    : Add the contribution of this synapse to the rising phase
+    A = A + weight * factor * gpeak
+
+    : Add the contribution of this synapse to the falling phase
+    B = B + weight * factor * gpeak
+
+    : Increment the total weight received by this synapse
+    total = total + weight
 }
 
 COMMENT

@@ -10,7 +10,7 @@ COMMENT
     2017-02-10 Removed celsius from the PARAMETER block
     2017-03-04 Moved cai from PARAMETER to ASSIGNED
     2017-03-05 Moved some variables from PARAMETER to ASSIGNED
-    2018-05-09 Changed tabs to spaces
+    2018-05-09 Changed tabs to spaces and set column width at 80
 
 ENDCOMMENT
 
@@ -21,27 +21,28 @@ NEURON {
     RANGE gbar
     RANGE ik
 }
-
+    
 UNITS {
-    (mV)    =    (millivolt)
-    (mA)    =    (milliamp)
-    (molar)    =    (/liter)
-    (mM)    =    (millimolar)
+    (mV)    = (millivolt)
+    (mA)    = (milliamp)
+    (molar) = (/liter)
+    (mM)    = (millimolar)
 }
 
 PARAMETER {
     : RANGE variables whose values are specified in hoc
-    ek            (mV)
-    gbar    = 1.5e-3    (mho/cm2 mM)    : [Ca++]i-dependent K+ conductance, Sohal & Huguenard 2003
+    ek              (mV)
+    gbar    = 1.5e-3(mho/cm2 mM)    : [Ca++]i-dependent K+ conductance, 
+                                    :   Sohal & Huguenard 2003
 }
 
 ASSIGNED {
     : Variables that are assigned outside the mod file
-    v            (mV)
-    cai            (mM)        : intracellular [Ca++] (mM)
+    v               (mV)
+    cai             (mM)            : intracellular [Ca++] (mM)
 
     : RANGE variables that are assigned in the BREAKPOINT block
-    ik            (mA/cm2)
+    ik              (mA/cm2)
 }
 
 BREAKPOINT {

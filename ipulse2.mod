@@ -4,7 +4,8 @@ COMMENT
 
     ipulse2.mod
     Generates a train of current pulses
-    User specifies dur (pulse duration), per (period, i.e. interval between pulse onsets),
+    User specifies dur (pulse duration), 
+        per (period, i.e. interval between pulse onsets),
     and number of pulses.
     Ensures that period is longer than pulse duration.
     2/6/2002 NTC
@@ -25,18 +26,19 @@ UNITS {
 }
 
 PARAMETER {
-    del    (ms)        : stimulation delay (ms)
-    dur    (ms) <0, 1e9>    : current pulse duration (ms)
-    amp    (nA)        : current pulse amplitude (nA)
-    per    (ms) <0, 1e9>    : current pulse period (ms), i.e. interval between pulse onsets
-    num    (1)        : number of current pulses
+    del    (ms)                 : stimulation delay (ms)
+    dur    (ms)     <0, 1e9>    : current pulse duration (ms)
+    amp    (nA)                 : current pulse amplitude (nA)
+    per    (ms)     <0, 1e9>    : current pulse period (ms), 
+                                :   i.e. interval between pulse onsets
+    num    (1)                  : number of current pulses
 }
 
 ASSIGNED {
     ival    (nA)
-    i    (nA)
-    on    (1)        : whether current pulse is on
-    tally    (1)        : how many more current pulses to deliver
+    i       (nA)
+    on      (1)                 : whether current pulse is on
+    tally   (1)                 : how many more current pulses to deliver
 }
 
 INITIAL {
@@ -62,19 +64,20 @@ BREAKPOINT {
 }
 
 NET_RECEIVE (w) {
-    if (flag == 1) {                : ignore any but self-events with flag == 1
+    : Ignore any but self-events with flag == 1
+    if (flag == 1) {
         if (on == 0) {
-            : turn it on
+            : Turn it on
             ival = amp
             on = 1
-            : prepare to turn it off
+            : Prepare to turn it off
             net_send(dur, 1)
         } else {
-            : turn it off
+            : Turn it off
             ival = 0
             on = 0
             if (tally > 0) {
-                : prepare to turn it on again
+                : Prepare to turn it on again
                 net_send(per - dur, 1)
                 tally = tally - 1
             }
@@ -84,7 +87,5 @@ NET_RECEIVE (w) {
 
 COMMENT
 OLD CODE:
-    printf("event sent!\n")
-    printf("flag == %d\n", flag)
 
 ENDCOMMENT

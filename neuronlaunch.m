@@ -119,10 +119,10 @@ set(0, 'defaultLegendAutoUpdate', 'off');
 experimentname = 'RTCl';
 
 %% Flags
-debugflag = 0;              % very short simulation
+debugflag = 1; %0;              % very short simulation
 singletrialnum = 0;         % run only one trial with this trial number
 onlargememflag = 0;         % run on large memory nodes
-saveplotmode = 'curves';    % what to save and plot
+saveplotmode = 'all'; % 'curves';    % what to save and plot
 loopmode = 'cross';         % how to loop through parameters: 'cross' or 'grid'
                             %   'cross' - Loop through each parameter 
                             %               while fixing others
