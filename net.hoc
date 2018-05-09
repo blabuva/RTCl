@@ -1,0 +1,855 @@
+/*--------------------------------------------------------------
+    PROCEDURES FOR NETWORK SIMULATIONS
+    --------------------------------------------
+
+    Requires:
+        cd/RE.tem
+        cd/ipulse2.mod
+        cd/gabaA_Cl.mod
+    Used by:
+        cd/run.hoc
+
+    File history:
+    2017-02-07 Modified from net.hoc of MCM 201505 for Peter's project
+    2017-02-10 Renamed parameters and made many of them arguments
+    2017-02-13 Made file names arguments
+    2017-02-13 Changed the way RErandact works
+    2017-02-13 Changed GABAA receptor to the chloride-dependent one (gabaaCl) 
+                from gabaa
+    2017-02-23 Made synaptic parameters arguments
+    2017-02-23 Removed self-synapses
+    2017-02-23 Removed REcellID, now records all neurons
+    2017-02-24 Now records leak properties in a file
+    2017-02-24 Added actcellID to REsinglecp()
+    2017-02-26 Added chloride concentration traces
+    2017-03-04 Added spcellID and other traces to record for the special neuron
+    2017-03-07 Added print_params(): prints all parameters to a csv file
+    2017-03-07 Changed formatting to %g
+    2017-03-07 Now records two special neurons at once
+    2017-03-13 Make network linear from circular
+    2017-03-14 Change current pulse stimulation to Ipulse2 from IClamp1
+    2017-03-14 Check whether REtimevec.size() is 0 before printing spikes
+    2017-03-14 finitialize() is now called right before the simulation
+    2017-03-14 Fixed the extra [0 0] entries in REREsynmap and added nsyns
+    2017-03-15 Added REuseca to make T channels, KCa channels 
+                and calcium decay optional
+    2017-03-15 Added drive_channel, drive_extrusion, cli1
+    2017-03-21 Added REnsegs
+    2017-03-21 Added REgabaa1 & REgabaa2
+    2017-03-22 Added REconsyn
+    2017-03-22 Changed REgabaa1 & REgabaa2 to a 2-D array REgabaA
+    2017-03-22 Changed order of columns in spMat and 
+                changed the source of chloride dependent vectors 
+                to where the recorded synapse lies
+    2017-03-28 Make REdiam an argument
+    2017-03-31 Changed units of REtauKCC2 to seconds
+    2017-04-05 Added REmultcp(); changed electrode to an array
+    2017-04-10 Added REthreecp();
+    2017-04-14 Only record time vector if single neuron traces are saved
+    2017-05-01 Changed REgabaa[i].Tfall from 10 to 50
+    2018-05-09 Reorganized comments
+
+--------------------------------------------------------------*/
+
+/******************************************************************************/
+
+/* Load templates */
+load_file("RE.tem")     // template for RE cell, USAGE: new REcell()
+load_file("stdlib.hoc") // for String class
+
+/* Define number of connections from network radius */
+nconn = RERErad*2
+
+/* Object declarations */
+objref REREsynF         // Class: File, file with RE-RE synaptic connections
+objref REspikeF         // Class: File, file with RE spike train output
+objref REvF             // Class: File, file with voltage traces for the RE neurons
+objref REcliF           // Class: File, file with chloride concentration traces for the RE neurons
+objref REspF[nsp]       // Class: File, file with other traces to record for special neurons
+objref REleakF          // Class: File, file with leak conductances for each neuron
+objref REparamsF        // Class: File, file with parameters for each neuron
+objref REtimevec        // Class: Vector, stores all spike times
+objref REidvec          // Class: Vector, stores the neuron ID for each spike time
+objref tvec             // Class: Vector, stores simulation time points
+objref REREsynmap       // Class: Matrix, table of RE-RE synaptic connections (synaptic map)
+objref REspi            // Class: Matrix, stores spike train data
+objref REleakmat        // Class: Matrix, stores leak conductances for all neurons
+objref REparamsmat      // Class: Matrix, stores parameters for all neurons
+objref vMat             // Class: Matrix, stores time vector and voltage traces for all neurons
+objref cliMat           // Class: Matrix, stores time vector and chloride concentration traces for all neurons
+objref spMat[nsp]       // Class: Array<Matrix>, stores the other traces to record for the special neurons
+objref REgabalist       // Class: List<NetCon>, stores gaba synapses on RE cells
+objref REpnames         // Class: List<String>, stores parameter names of RE cells
+objref REsomapnames     // Class: List<String>, stores parameter names of RE[i].soma
+objref REgabaapnames    // Class: List<String>, stores parameter names of REgabaa[i]
+objref REGLpnames       // Class: List<String>, stores GLOBAL parameter names
+objref REotherpnames    // Class: List<String>, stores parameter names of RE[i]
+objref rand             // Class: Random, random number generator
+objref el[ncells]       // Class: Ipulse2, a current injection electrode
+objref cvode            // Class: CVode
+objref RE[ncells]       // Class: Array<REcell>, stores RE cells
+objref REgabaa[ncells]  // Class: Array<gabaa>, stores combined GABA-A receptors of RE cells
+objref REgabaA[ncells][nconn]   // Class: Array<gabaa>, stores individual GABA-A receptors of RE cells
+objref REsynrec[ncells] // Class: Array<gabaa>, stores the GABA-A receptor to record for each RE cell
+objref REsynrecsec[ncells]  // Class: Array<SectionRef>, stores references to the section containing the synapses of interest
+objref REv_soma[ncells] // Class: Array<Vector>, stores voltage traces of RE cells
+objref REcli_soma[ncells]   // Class: Array<Vector>, stores chloride concentration traces of RE cells
+objref REspv[nsp]       // Class: Array<Vector>, stores voltage traces of special neurons
+objref REspGicl[nsp]    // Class: Array<Vector>, stores GABA-A chloride current traces of special neurons
+objref REspGihco3[nsp]  // Class: Array<Vector>, stores GABA-A bicarbonate current traces of special neurons
+objref REspicl[nsp]     // Class: Array<Vector>, stores chloride current traces of special neurons
+objref REspica[nsp]     // Class: Array<Vector>, stores calcium current traces of special neurons
+objref REspina[nsp]     // Class: Array<Vector>, stores sodium current traces of special neurons
+objref REspik[nsp]      // Class: Array<Vector>, stores potassium current traces of special neurons
+objref REspcli[nsp]     // Class: Array<Vector>, stores chloride concentration traces of special neurons
+objref REspcai[nsp]     // Class: Array<Vector>, stores calcium concentration traces of special neurons
+objref REspecl[nsp]     // Class: Array<Vector>, stores chloride reversal potential traces of special neurons
+objref REspeGABA[nsp]   // Class: Array<Vector>, stores GABA-A reversal potential traces of special neurons
+objref REspcli1[nsp]    // Class: Array<Vector>, stores chloride concentration of inner annulus traces of special neurons
+objref tobj             // Class: NetCon, an inactive synapse for recording spike times
+objref nil              // Class: NULLObject, for recording spike times using NetCon
+strdef command          // Class: String, for storing command that will be executed
+
+/* Seed a new random number generator */
+rand = new Random()    
+
+/* C-language Variable-coefficients ODE solver
+    Note: hh2 doesn't work with cvode, so it will remain inactive.
+        However, we need to create a CVode object to be able to use NetCon */
+cvode = new CVode(0)    // 0 - start with CVode inactive
+
+
+/* zero */
+zero = 0
+
+/***********************************************************************************************/
+
+/* Build the network */
+proc buildnet() { local nsyns lc
+// $s1 = file name for the file with RE-RE synaptic connections (sREREsynF_full)
+// $2 = ID # of 1st special neuron to record (spcellID1)
+// $3 = ID # of 2nd special neuron to record (spcellID2)
+// $4 = ID # of 3nd special neuron to record (spcellID3)
+// $5 = number of segments in an RE cell (REnsegs)
+// $6 = mode to use ca_ion (0 or 1 or 2) in RE cells (REuseca)
+// $7 = which cld mechanism to use (0, 1 or 2) (REcldnum)
+// $8 = whether to concentrate synapses (0 or 1) in RE cells (REconsyn)
+// $9 = Cl- removal time constant (s) (REtauKCC2)
+// $10 = leak reversal potential (mV) (REepas)
+// $11 = diameter of an RE cell (REdiam)
+// $12 = peak conductance (uS) for each event at the GABA-A receptor (REGgaba)
+// $13 = radius of intra-RE synaptic connections (RERErad)
+// $14 = action potential threshold (mV) (sp_thr)
+// $15 = synaptic delay (ms) (syn_del)
+// $16 = synaptic weight, fraction of channels activated (syn_w)
+// $17 = initial intracellular [Ca++] (mM) (cai0)
+// $18 = initial extracellular [Ca++] (mM) (cao0)
+// $19 = initial intracellular [Cl-] (mM) (cli0)
+// $20 = initial extracellular [Cl-] (mM) (clo0)
+// $21 = ID # of neuron to activate (actcellID)
+// $22 = Activation mode (actmode)
+// $23 = whether to save network topology (savenetwork)
+// $24 = whether to save spike data (savespikes)
+// $25 = whether to save all voltage data (savesomavoltage)
+// $26 = whether to save all chloride concentration data (savesomacli)
+// $27 = whether to save special neuron data (savespecial)
+
+    /* Initialize GLOBAL variables */
+    cai0_ca_ion = $17   // initial intracellular [Ca++] (mM)
+    cao0_ca_ion = $18   // initial extracellular [Ca++] (mM)
+    cli0_cl_ion = $19   // initial intracellular [Cl-] (mM)
+    clo0_cl_ion = $20   // initial extracellular [Cl-] (mM)
+    qm_Ts = 2.5         // q10 for T channel activation
+    qh_Ts = 2.5         // q10 for T channel inactivation
+
+    /* Create neurons */
+    for i=0, ncells-1 {
+        if ($6 == 0 || ($6 == 2 && $22 == 1 && i == $21) \
+            || ($6 == 2 && $22 == 2 && (i-$21)%($13+1) == 0) \
+            || ($6 == 2 && $22 == 3 && (i-$21)%($13+1) == 0 && i <= $21+$13+1 && i >= $21-$13-1)) {    
+                    // all cells in mode 0 and the stimulated cell(s) in mode 2
+            // Create an RE cell without calcium dynamics
+            RE[i] = new REcell($5, 0, $7, $8, $9, $10, $11)
+        } else {
+            // Create an RE cell with calcium dynamics
+            RE[i] = new REcell($5, 1, $7, $8, $9, $10, $11)
+        }
+    }
+
+    /* Create post-synaptic mechanisms for each cell */
+    for i=0, ncells-1 {
+        if ($5 == 1) {                // if there is only one segment
+            // Create combined chloride-dependent GABA-A receptors on RE cells
+            REgabaa[i] = new gabaaCl()    // create a GABA-A receptor and place into the array REgabaa
+                            //     READ ecl WRITE icl
+            RE[i].soma REgabaa[i].loc(0.5)    // place receptor at the center of the soma for RE[i]
+            REgabaa[i].Trise = 0.1        // rising phase time constant (ms) of the GABA-A conductance
+            REgabaa[i].Tfall = 50        // falling phase time constant (ms) of the GABA-A conductance, 
+                            //    TODO: Source
+            REgabaa[i].grel = 0.2        // relative conductance of HCO3 at the GABA-A receptor, Peter's value
+            REgabaa[i].HCO3e = 26        // extracellular [HCO3-] (mM), Peter's value (& Jedlicka et al 2011)
+            REgabaa[i].HCO3i = 16        // intracellular [HCO3-] (mM), Jedlicka et al 2011    
+            REgabaa[i].gpeak = $12        // peak conductance (uS) per event at the GABA-A receptor
+
+            // Nonspecific GABA-A receptors on RE cells
+            // REgabaa[i] = new gabaa()    // create a GABA-A receptor and place into the array REgabaa
+            // $2 = Erev of a GABA-A synapse (REEgaba)
+            // REgabaa[i].Erev = $2        // set the reversal potential (mV) of the GABA-A receptor
+        } else if ($5 >= 3) {    // if there are more than 3 segments
+            // Create individual chloride-dependent GABA-A receptors on RE cells
+            for j=0, nconn-1 {
+                REgabaA[i][j] = new gabaaCl()    // create a GABA-A receptor and place into the array REgabaA
+                                //     READ ecl WRITE icl
+                if (j <= 3) {                // for the receptors on the left
+                    if ($5 == 3) {            // if there are 3 segments
+                        lc = (1/6)        // place all receptors at the center of left segment
+                    } else if ($5 == 9) {        // if there are 9 segments
+                        lc = (2*j+1)/18        // place each receptor in its own segment
+                    } else {
+                        print "This REnsegs has not been implemented!"
+                    }
+                } else if (j >= 4) {            // for the receptors on the right
+                    if ($5 == 3) {            // if there are 3 segments
+                        lc = (5/6)        // place all receptors at the center of right segment
+                    } else if ($5 == 9) {        // if there are 9 segments
+                        lc = (2*j+3)/18        // place each receptor in its own segment
+                    } else {
+                        print "This REnsegs has not been implemented!"
+                    }
+                }
+                if ($8 == 1 && j <= 3) {            // if soma_flank[0] exists
+                    lc = lc / 0.5                // modify location to be relative to soma_flank[0]
+                    RE[i].soma_flank[0] REgabaA[i][j].loc(location)        
+                                        // place receptor at the left flank for RE[i]
+                } else if ($8 == 1 && j >= 4) {            // if soma_flank[1] exists
+                    lc = lc / 0.5 - 1            // modify location to be relative to soma_flank[1]
+                    RE[i].soma_flank[1] REgabaA[i][j].loc(location)        
+                                        // place receptor at the right flank for RE[i]
+                } else {
+                    RE[i].soma REgabaA[i][j].loc(lc)    // place receptor at the specified location 
+                                        //     on the soma for RE[i]
+                }
+                REgabaA[i][j].Trise = 0.1    // rising phase time constant (ms) of the GABA-A conductance
+                REgabaA[i][j].Tfall = 10    // falling phase time constant (ms) of the GABA-A conductance
+                REgabaA[i][j].grel = 0.2    // relative conductance of HCO3 at the GABA-A receptor
+                                //    Peter's value
+                REgabaA[i][j].HCO3e = 26    // extracellular [HCO3-] (mM), Peter's value 
+                                //     (same as Jedlicka et al 2011)
+                REgabaA[i][j].HCO3i = 16    // intracellular [HCO3-] (mM), Jedlicka et al 2011    
+                REgabaA[i][j].gpeak = $12    // peak conductance (uS) per event at the GABA-A receptor
+            }
+        }
+
+        // Get references to the sections and synapses of interest for recording chloride accumulation
+        if ($5 == 1) {                    // if there is only one segment
+            REsynrec[i] = REgabaa[i]        // record from the combined synapse
+        } else if ($5 >= 3) {                // if there are >= 3 segments
+            REsynrec[i] = REgabaA[i][$13]    // record from the synapse just to the right of midpoint
+        }
+        if ($5 == 1 || $8 == 0)    {            // if either there is only one segment or soma_flank doesn't exist
+            RE[i].soma REsynrecsec[i] = new SectionRef()
+                                // the recorded synapse is at the soma
+        } else if ($5 >= 3 && $8 == 1) {        // if there are >= 3 segments and soma_flank[1] exists
+            RE[i].soma_flank[1] REsynrecsec[i] = new SectionRef()
+                                // the recorded synapse is at the section to the right of soma
+        }
+    }
+
+    /* Set up GABA-A synapses between RE cells */
+    nsyns = ncells*(2*$13)-$13*($13+1)        // number of synapses to be formed
+    if ($23) {
+        REREsynmap = new Matrix(nsyns, 2)        // table of RE-RE synaptic connections (synaptic map)
+                                // columns: "from" "to"
+    }
+    REgabalist = new List()                // list of RE-RE synaptic connections (synaptic map) %%% TO EXAMINE
+    REREsyncount = 0                // counts the number of RE-RE synapses formed
+    for i=0, ncells-1 {        // for each cell in the network
+        for j=-$13, $13 {        // for each distance away from the cell
+            // Do not synapse to itself
+            if (j == 0) {
+                continue
+            }
+
+            // Find where the synapse will come from
+            k = i + j            // the neuron ID the synapse comes from
+            if (k < 0 || k >= ncells) {
+                // k = k % ncells        // make the network circular (no boundaries)
+                continue        // network is linear with no modifications at boundaries
+            }
+
+            if ($5 == 1) {
+                // Create synapse and append to the list REgabalist
+                RE[k].soma REgabalist.append(new NetCon(&v(0.5), REgabaa[i], $14, $15, $16))
+                    // threshold == $14 mV; delay == $15 ms; weight == $16 (fraction of channels activated)
+            } else if ($5 >= 3) {
+                if (j < 0) {        // k < i
+                    // Create synapse from cell k to the left of cell i and append to the list REgabalist
+                    RE[k].soma REgabalist.append(new NetCon(&v(0.5), REgabaA[i][j+$13], $14, $15, $16))
+                } else if (j > 0) {
+                    // Create synapse from cell k to the right of cell i and append to the list REgabalist
+                    RE[k].soma REgabalist.append(new NetCon(&v(0.5), REgabaA[i][j+$13-1], $14, $15, $16))
+                }
+            }
+
+            // Update synaptic map, etc.
+            if ($23) {
+                REREsynmap.x[REREsyncount][0] = k    // where the synapse comes "from"
+                REREsynmap.x[REREsyncount][1] = i    // where the synapse goes "to"
+            }
+            REREsyncount = REREsyncount + 1        // update number of synapses formed
+
+            // %%% TO EXAMINE
+            // REgabaa[i].Ninputs = REgabaa[i].Ninputs + 1    // update number of GABA-A inputs to neuron #i
+
+        }
+    }
+    if (REREsyncount != nsyns) {
+        print "Error: REREsyncount != nsyns"
+        return 1
+    }
+    
+    /* Print RE-RE synaptic map to a file */
+    if ($23) {
+        REREsynF = new File()            // file with RE-RE synaptic connections
+        REREsynF.wopen($s1)            // open file to be written
+        REREsynmap.fprint(0, REREsynF)        // the first argument being 0 will prevent "nrow ncol" from being printed
+        REREsynF.close()            // close file
+    }
+
+    /* Record all spike events by using two vectors */
+    if ($24) {
+        REtimevec = new Vector()                // stores all spike times
+        REidvec = new Vector()                    // stores the neuron ID for each spike time
+        for i=0, ncells-1 {
+            RE[i].soma tobj = new NetCon(&v(0.5), nil)    // an inactive synapse for recording spike times
+            tobj.record(REtimevec, REidvec, i)        // record the spike times with the neuron ID given by i
+            objref tobj                    // destroy the inactive synapse
+                                    // this does not destroy the recording
+        }
+    }
+    
+    /* Record time vector if single neuron traces are saved */
+    if ($25 || $26 || $27) {
+        tvec = new Vector()                    // stores simulation time points
+        tvec.record(&t)
+    }
+
+    /* Record single neuron voltage trace for all neurons */
+    if ($25) {
+        for i=0, ncells-1 {
+            REv_soma[i] = new Vector()            // stores voltage trace of ith RE cell
+            REv_soma[i].record(&RE[i].soma.v)
+        }
+    }
+    
+    /* Record single neuron chloride concentration trace for all neurons */
+    if ($26) {
+        for i=0, ncells-1 {
+            REcli_soma[i] = new Vector()            // stores chloride concentration trace of ith RE cell
+            REcli_soma[i].record(&RE[i].soma.cli)
+        }
+    }
+
+    /* Record other traces for the special neurons */
+    if ($27) {
+        create_vectors(0, $2, $6, $7)
+        create_vectors(1, $3, $6, $7)
+        create_vectors(2, $4, $6, $7)
+    }
+
+    /* Print success phrase */
+    print "Network built!"
+}
+
+/* Create vectors to record time-varying variables */
+proc create_vectors() { local lc
+// $1 = iteration index of special neuron
+// $2 = ID # of special neuron
+// $3 = mode to use ca_ion (0 or 1 or 2) in RE cells (REuseca)
+// $4 = which cld mechanism to use (0, 1 or 2) (REcldnum)
+
+    // Get the location of the synapse to record and make the section the currently accessed section
+    lc = REsynrec[$2].get_loc()
+    if (REsynrecsec[$2].is_cas() == 0) {
+        execerror("Recorded GABA-A synapse is not placed in the correct section!")
+    }
+    pop_section()                    // necessary after calling get_loc()
+
+    REspv[$1] = new Vector()            // stores voltage trace of the special neuron
+    REspv[$1].record(&RE[$2].soma.v(0.5))
+    REspina[$1] = new Vector()            // stores sodium current trace of the special neuron
+    REspina[$1].record(&RE[$2].soma.ina(0.5))
+    REspik[$1] = new Vector()            // stores potassium current trace of the special neuron
+    REspik[$1].record(&RE[$2].soma.ik(0.5))
+    REspica[$1] = new Vector()            // stores calcium current trace of the special neuron
+    REspcai[$1] = new Vector()            // stores calcium concentration trace of the special neuron
+    if ($3 == 1 || $3 == 2) {
+        REspica[$1].record(&RE[$2].soma.ica(0.5))
+        REspcai[$1].record(&RE[$2].soma.cai(0.5))
+    } else {                    // if ica or cai doesn't exist, record drive_channel & drive_extrusion instead
+        if ($4 == 0) {
+            REspica[$1].record(&REsynrecsec[$2].sec.drive_channel_cld(lc))
+            REspcai[$1].record(&REsynrecsec[$2].sec.drive_extrusion_cld(lc))
+        } else if ($4 == 1) {
+            REspica[$1].record(&REsynrecsec[$2].sec.drive_channel_cld1(lc))
+            REspcai[$1].record(&REsynrecsec[$2].sec.drive_extrusion_cld1(lc))
+        } else if ($4 == 2) {
+            REspica[$1].record(&REsynrecsec[$2].sec.drive_channel_cld2(lc))
+            REspcai[$1].record(&REsynrecsec[$2].sec.drive_extrusion_cld2(lc))
+        }
+    }
+    REspGicl[$1] = new Vector()            // stores GABA_A chloride current trace of the special neuron
+    REspGicl[$1].record(&REsynrec[$2].icl)
+    REspGihco3[$1] = new Vector()            // stores GABA_A bicarbonate current trace of the special neuron
+    REspGihco3[$1].record(&REsynrec[$2].ihco3)
+    REspicl[$1] = new Vector()            // stores chloride current trace of the special neuron
+    REspicl[$1].record(&REsynrecsec[$2].sec.icl(lc))
+    REspcli[$1] = new Vector()            // stores chloride concentration trace of the special neuron
+    REspcli[$1].record(&REsynrecsec[$2].sec.cli(lc))
+    REspcli1[$1] = new Vector()            // stores chloride concentration in inner annulus trace
+    if ($4 == 1) {
+        REspcli1[$1].record(&REsynrecsec[$2].sec.cli1_cld1(lc))
+    } else if ($4 == 2) {
+        REspcli1[$1].record(&REsynrecsec[$2].sec.cli1_cld2(lc))
+    } else {                    // if doesn't exist, just record cli
+        REspcli1[$1].record(&REsynrecsec[$2].sec.cli(lc))
+    }
+    REspecl[$1] = new Vector()            // stores chloride reversal potential trace of the special neuron
+    REspecl[$1].record(&REsynrecsec[$2].sec.ecl(lc))
+    REspeGABA[$1] = new Vector()            // stores GABA-A reversal potential trace of 
+                            //     the synapse from the right adjacent neuron
+    REspeGABA[$1].record(&REsynrec[$2].e)
+}
+
+
+/* Uniformly randomize leak properties */
+proc randleak() {
+// $1 = RE cells' leak conductance (S/cm^2), lower bound (REgpasLB)
+// $2 = RE cells' leak conductance (S/cm^2), upper bound (REgpasUB)
+// $s3 = file name for the file with RE leak properties
+
+    /* Print leak properties to a matrix */
+    REleakmat = new Matrix(ncells, 2)    // stores leak conductances for all neurons
+
+    for i=0, ncells-1 {    // for each cell in the network
+        RE[i].soma.g_pas = rand.uniform($1, $2)        // choose g_pas from a Uniform($1, $2) distribution
+        REleakmat.x[i][0] = i                // the ID # of the neuron
+        REleakmat.x[i][1] = RE[i].soma.g_pas        // the leak conductance (S/cm^2) of the neuron
+    }
+
+    /* Print leak properties to a file */
+    REleakF = new File()            // file with leak conductances for each neuron
+    REleakF.wopen($s3)            // open file to be written
+    REleakmat.fprint(0, REleakF, "%g, ", "\n")
+    REleakF.close()                // close file
+
+}
+
+/* NOT USED: Set synaptic conductances */
+proc setg() {    // 
+// $1 = strength of GABA synapses on RE cells
+
+    for i=0, ncells-1 {    // for each cell in the network
+        REgabaa[i].gmax = $1
+    }
+}
+
+/* NOT USED: Set decay time constants; NOT USED */
+proc setT() {    // 
+// $1 = rise time constant for GABA synapses onto RE cells
+// $2 = decay time constant for GABA synapses onto RE cells
+
+    for i=0, ncells-1 {    // for each cell in the network
+        REgabaa[i].TRise = $1
+        REgabaa[i].Tfall = $2
+    }
+}
+
+
+/* User-defined initiation */
+proc vinit() {
+// $1 = resting membrane potential (mV) of RE cells (RErest)
+    
+    for i=0, ncells-1 {    // for each cell in the network
+        // %%% TO EXAMINE: try replacing below with finitialize($1)
+        RE[i].soma.v = $1        // set somatic voltage to $1
+    }
+
+}
+
+/* Activate a single RE cell by injecting a train of current pulses */
+proc REsinglecp() { 
+// $1 = ID # of neuron to activate (actcellID)
+// $2 = stimulation delay (ms) (stim_start)
+// $3 = current pulse duration (ms) (cp_dur)
+// $4 = current pulse amplitude (nA) (cp_amp)
+// $5 = current pulse period (ms) (cp_per)
+// $6 = current pulse number (cp_num)
+
+    /* Insert an electrode at the center cell */
+    RE[$1].soma el[$1] = new Ipulse2(0.5)        // place current pulse electrode at the center of soma
+    el[$1].del = $2                    // stimulation delay (ms)
+    el[$1].dur = $3                    // current pulse duration (ms)
+    el[$1].amp = $4                    // current pulse amplitude (nA)
+    el[$1].per = $5                    // current pulse period (ms), i.e. interval between pulse onsets
+    el[$1].num = $6                    // number of current pulses
+
+}
+
+/* Activate every (RERErad + 1)th RE cell by injecting trains of current pulses */
+proc REmultcp() { 
+// $1 = ID # of central neuron to activate (actcellID)
+// $2 = stimulation delay (ms) (stim_start)
+// $3 = current pulse duration (ms) (cp_dur)
+// $4 = current pulse amplitude (nA) (cp_amp)
+// $5 = current pulse period (ms) (cp_per)
+// $6 = current pulse number (cp_num)
+// $7 = radius of intra-RE synaptic connections (RERErad)
+
+    for i=0, ncells-1 {
+        if ( (i-$1) % ($7+1) == 0 ) {
+            /* Insert an electrode at the center cell */
+            RE[i].soma el[i] = new Ipulse2(0.5)    // place current pulse electrode at the center of soma
+            el[i].del = $2                // stimulation delay (ms)
+            el[i].dur = $3                // current pulse duration (ms)
+            el[i].amp = $4                // current pulse amplitude (nA)
+            el[i].per = $5                // current pulse period (ms), i.e. interval between pulse onsets
+            el[i].num = $6                // number of current pulses
+        }
+    }
+
+}
+
+/* Activate 3 RE cells by injecting trains of current pulses */
+proc REthreecp() { 
+// $1 = ID # of central neuron to activate (actcellID)
+// $2 = stimulation delay (ms) (stim_start)
+// $3 = current pulse duration (ms) (cp_dur)
+// $4 = current pulse amplitude (nA) (cp_amp)
+// $5 = current pulse period (ms) (cp_per)
+// $6 = current pulse number (cp_num)
+// $7 = radius of intra-RE synaptic connections (RERErad)
+
+    for i=0, ncells-1 {
+        if ( (i-$1) % ($7+1) == 0 && i <= $1+$7+1 && i >= $1-$7-1 ) {
+            /* Insert an electrode at the center cell */
+            RE[i].soma el[i] = new Ipulse2(0.5)    // place current pulse electrode at the center of soma
+            el[i].del = $2                // stimulation delay (ms)
+            el[i].dur = $3                // current pulse duration (ms)
+            el[i].amp = $4                // current pulse amplitude (nA)
+            el[i].per = $5                // current pulse period (ms), i.e. interval between pulse onsets
+            el[i].num = $6                // number of current pulses
+        }
+    }
+
+}
+
+/* Activate a single RE cell by changing the membrane potential instantaneously */
+proc REsingleact() { 
+// $1 = ID # of neuron to activate (actcellID)
+// $2 = voltage (mV) to set activated neuron to (actcellv)
+
+    RE[$1].soma.v = $2
+}
+
+/* Randomly activate RE cells:
+    Likelihood of activation as a function of location is Gaussian and is one at the center */
+proc RErandact() { 
+// $1 = center of Gaussian distribution (actcellID)
+// $2 = width of Gaussian distribution (actwidth)
+// $3 = maximum likelihood of activation at center (actmaxp)
+// $4 = voltage (mV) to set activated neuron to (actcellv)
+
+    for i=0, ncells-1 {
+        // Only execute if a random number in (0, 1) is less than or equal to the likelihood
+        if (rand.uniform(0, 1) <= $3*exp(-(i-$1)*(i-$1)/(2*$2*$2))) {    
+            RE[i].soma.v = $4
+        }
+    }
+
+}
+
+/* Simulate the network reponse */
+proc sim() {
+// $1 = total time of simulation in ms (tstop)
+// $2 = time step of integration in ms (dt)
+// $s3 = file name for the file with RE spike train output
+// $s4 = file name for the file with voltage traces for the RE neurons
+// $s5 = file name for the file with chloride concentration traces for the RE neurons
+// $s6 = file name for the file with other traces to record for the 1st special neuron
+// $s7 = file name for the file with other traces to record for the 2nd special neuron
+// $s8 = file name for the file with other traces to record for the 3rd special neuron
+// $9 = whether to save spike data (savespikes)
+// $10 = whether to save all voltage data (savesomavoltage)
+// $11 = whether to save all chloride concentration data (savesomacli)
+// $12 = whether to save special neuron data (savespecial)
+
+    /* Simulate network response */
+    dt = $2
+    startsw()        // Initialize stopwatch
+    finitialize()        // Initialize all mechanisms and point processes
+    while (t < $1) {
+        fadvance()
+    }
+
+    // Check time vector if exists
+    if ($10 || $11 || $12) {
+        print "Size of tvec = ", tvec.size()
+    }
+
+    if ($9) {
+        // Check vectors
+        print "Size of REidvec = ", REidvec.size()
+        print "Size of REtimevec = ", REtimevec.size()
+
+        if (REtimevec.size() != 0) {
+            // Store the spike train data into a matrix
+            REspi = new Matrix(REtimevec.size(), 2)    // stores spike train data
+            REspi.setcol(0, REidvec)        // 1st column: RE neuron ID # of spike
+            REspi.setcol(1, REtimevec)        // 2nd column: Spike time
+        }
+        
+        // Print the spike train data to a file
+        REspikeF = new File()            // file with RE spike train output
+        REspikeF.wopen($s3)            // open file for writing with file name $s3
+        if (REtimevec.size() != 0) {
+            REspi.fprint(0, REspikeF)    // print data to file
+        }
+        REspikeF.close()            // close file
+    }
+
+    if ($10) {
+        // Store the single neuron voltage traces into a matrix
+        print "Size of REv_soma[0] = ", REv_soma[0].size()
+        if (tvec.size() != 0) {
+            vMat = new Matrix(tvec.size(), ncells+1)    // stores time vector and voltage traces for all neurons
+            vMat.setcol(0, tvec)                // 1st column: time vector
+            for i=0, ncells-1 {
+                vMat.setcol(i+1, REv_soma[i])        // ith column: voltage trace of RE neuron #i, i = 2 to ncell+1
+            }
+        }
+
+        // Print the single neuron voltage traces to a file
+        REvF = new File()                // file with voltage traces for the RE neurons
+        REvF.wopen($s4)                    // open file for writing with file name $s4
+        if (tvec.size() != 0) {
+            vMat.fprint(0, REvF, "%g\t", "\n")         // print data to file
+        }
+        REvF.close()                    // close file
+    }
+
+    if ($11) {
+        // Store the single neuron chloride concentration traces into a matrix
+        print "Size of REcli_soma[0] = ", REcli_soma[0].size()
+        if (tvec.size() != 0) {
+            cliMat = new Matrix(tvec.size(), ncells+1)    // stores time vector and cli traces for all neurons
+            cliMat.setcol(0, tvec)                // 1st column: time vector
+            for i=0, ncells-1 {
+                cliMat.setcol(i+1, REcli_soma[i])    // ith column: cli trace of RE neuron #i, i = 2 to ncell+1
+            }
+        }
+
+        // Print the single neuron chloride concentration traces to a file
+        REcliF = new File()                // file with chloride concentration traces for the RE neurons
+        REcliF.wopen($s5)                // open file for writing with file name $s4
+        if (tvec.size() != 0) {
+            cliMat.fprint(0, REcliF, "%g\t", "\n")     // print data to file
+        }
+        REcliF.close()                    // close file
+    }
+
+    if ($12) {
+        // Store the other traces to record for each special neuron into a matrix
+        if (tvec.size() != 0) {
+            for j=0, nsp-1 {
+                spMat[j] = new Matrix(tvec.size(), 13)    // stores other traces to record for the special neuron
+                spMat[j].setcol(0, tvec)        // 1st column: time vector
+                spMat[j].setcol(1, REspv[j])        // 2nd column: voltage (mV) trace of the special neuron
+                spMat[j].setcol(2, REspina[j])        // 3rd column: sodium current (mA/cm2) trace
+                spMat[j].setcol(3, REspik[j])        // 4th column: potassium current (mA/cm2) trace
+                spMat[j].setcol(4, REspica[j])        // 5th column: calcium current (mA/cm2) trace 
+                spMat[j].setcol(5, REspcai[j])        // 6th column: calcium concentration (mM) trace
+                spMat[j].setcol(6, REspGicl[j])        // 7th column: GABA-A chloride current (nA) trace
+                spMat[j].setcol(7, REspGihco3[j])    // 8th column: GABA-A bicarbonate current (nA) trace
+                spMat[j].setcol(8, REspicl[j])        // 9th column: chloride current (mA/cm2) trace
+                spMat[j].setcol(9, REspcli[j])        // 10th column: chloride concentration (mM) trace
+                spMat[j].setcol(10, REspcli1[j])    // 11th column: chloride concentration (mM) in inner annuli trace
+                spMat[j].setcol(11, REspecl[j])        // 12th column: chloride reversal potential trace
+                spMat[j].setcol(12, REspeGABA[j])    // 13th column: GABA-A reversal potential trace
+            }
+        }
+
+        // Print other traces to record for each special neuron to a file
+        for j=0, nsp-1 {
+            REspF[j] = new File()            // file with other traces to record for the special neuron
+            if (j == 0) {
+                REspF[j].wopen($s6)        // open file for writing
+            } else if (j == 1) {
+                REspF[j].wopen($s7)        // open file for writing
+            } else if (j == 2) {
+                REspF[j].wopen($s8)        // open file for writing
+            }
+            if (tvec.size() != 0) {
+                spMat[j].fprint(0, REspF[j], "%g\t", "\n")    // print output vectors to file
+            }
+            REspF[j].close                // close file
+        }
+    }
+}
+
+/* Print all parameters */
+proc print_params() { local c1 c2 c3 c4
+// $s1 = file name for the file with parameters for each neuron
+// $2 = number of segments in an RE cell (REnsegs)
+// $3 = mode to use ca_ion (0 or 1 or 2) in RE cells (REuseca)
+// $4 = which cld mechanism to use (0, 1 or 2) (REcldnum)
+// $5 = whether to concentrate synapses (0 or 1) in RE cells (REconsyn)
+
+    /* Create list for parameter names */
+    REpnames = new List()                // also serves as header for parameter matrix
+    REsomapnames = new List()            // for storing parameter names of RE[i].soma
+    REgabaapnames = new List()            // for storing parameter names of REgabaa[i]
+    REGLpnames = new List()                // for storing GLOBAL parameter names
+    REotherpnames = new List()            // for storing parameter names of RE[i]
+
+    /* Append parameter names of RE[i].soma to REsomapnames */
+    REsomapnames.append(new String("nseg"))        // number of segments
+    REsomapnames.append(new String("diam"))        // diameter (um)
+    REsomapnames.append(new String("L"))        // length (um) of center compartment
+    REsomapnames.append(new String("cm"))        // specific capacitance (uF/cm2)
+    REsomapnames.append(new String("Ra"))        // axial resistivity (Ohm-cm)
+    REsomapnames.append(new String("e_pas"))    // leak reversal potential (mV)
+    REsomapnames.append(new String("g_pas"))    // leak conductance (S/cm^2)
+    REsomapnames.append(new String("ena"))        // Na+ reversal potential (mV)
+    REsomapnames.append(new String("ek"))        // K+ reversal potential (mV)
+    REsomapnames.append(new String("vtraub_hh2"))    // action potential threshold (mV)
+    REsomapnames.append(new String("gnabar_hh2"))    // Na+ conductance (S/cm2)
+    REsomapnames.append(new String("gkbar_hh2"))    // K+ conductance (S/cm2)
+    REsomapnames.append(new String("pcabar_Ts"))    // Ca++ permeability (cm/s) for T channels
+    REsomapnames.append(new String("gpc_Ts"))    // conductance per unit concentration (mho/cm2 mM)
+    REsomapnames.append(new String("gbar_kca"))    // [Ca++]i-dependent K+ conductance (mho/cm2 mM)
+    REsomapnames.append(new String("depth_cad"))    // depth of shell for Ca++ (um)
+    REsomapnames.append(new String("taur_cad"))    // Ca++ removal time constant (ms)
+    REsomapnames.append(new String("cainf_cad"))    // steady state intracellular [Ca++] (mM)
+    if ($4 == 0) {
+        REsomapnames.append(new String("depth_cld"))    // depth of shell for Cl- (um)
+        REsomapnames.append(new String("tauKCC2_cld"))    // Cl- removal time constant (s)
+        REsomapnames.append(new String("clinf_cld"))    // steady state intracellular [Cl-] (mM)
+    } else if ($4 == 1) {
+        REsomapnames.append(new String("depth_cld1"))    // depth of shell for Cl- (um)
+        REsomapnames.append(new String("DCl_cld1"))    // Cl- diffusion coefficient (um2/ms)
+        REsomapnames.append(new String("tauKCC2_cld1"))    // Cl- removal time constant (s)
+        REsomapnames.append(new String("clinf_cld1"))    // steady state intracellular [Cl-] (mM)
+    } else if ($4 == 2) {
+        REsomapnames.append(new String("depth_cld2"))    // relative depth of shell (to diameter) for Cl-
+        REsomapnames.append(new String("DCl_cld2"))    // Cl- diffusion coefficient (um2/ms)
+        REsomapnames.append(new String("tauKCC2_cld2"))    // Cl- removal time constant (s)
+        REsomapnames.append(new String("clinf_cld2"))    // steady state intracellular [Cl-] (mM)
+        REsomapnames.append(new String("Kd_cld2"))    // [Cl-] for half-maximum flux for KCC2 (mM)
+        REsomapnames.append(new String("vmax_cld2"))    // maximum flux for KCC2 (mM/ms)
+        REsomapnames.append(new String("leak_cld2"))    // leak chloride flux (mM/ms) at steady state
+    }
+    c1 = REsomapnames.count()
+
+    /* Append parameter names of REgabaa[i] or REgabaA[i][RERErad] to REgabaapnames */
+    REgabaapnames.append(new String("Trise"))    // rising phase time constant (ms) of the GABA-A conductance
+    REgabaapnames.append(new String("Tfall"))    // falling phase time constant (ms) of the GABA-A conductance
+    REgabaapnames.append(new String("grel"))    // relative conductance of HCO3 at the GABA-A receptor
+    REgabaapnames.append(new String("HCO3e"))    // extracellular [HCO3-] (mM)
+    REgabaapnames.append(new String("HCO3i"))    // intracellular [HCO3-] (mM)
+    REgabaapnames.append(new String("gpeak"))    // peak conductance (uS) per event at the GABA-A receptor
+    REgabaapnames.append(new String("factor"))    // normalization factor for the GABA-A conductance
+    REgabaapnames.append(new String("ehco3"))    // reversal potential (mV) for HCO3-
+    REgabaapnames.append(new String("total"))    // total weight received by this GABA-A receptor
+    c2 = REgabaapnames.count()
+
+    /* Append GLOBAL parameters to REGLpnames */
+    REGLpnames.append(new String("cai0_ca_ion"))    // initial intracellular [Ca++] (mM)
+    REGLpnames.append(new String("cao0_ca_ion"))    // initial extracellular [Ca++] (mM)
+    REGLpnames.append(new String("cli0_cl_ion"))    // initial intracellular [Cl-] (mM)
+    REGLpnames.append(new String("clo0_cl_ion"))    // initial extracellular [Cl-] (mM)
+    REGLpnames.append(new String("tadj_hh2"))    // temperature adjustion to HH time constants
+    REGLpnames.append(new String("qm_Ts"))        // q10 for T channel activation
+    REGLpnames.append(new String("qh_Ts"))        // q10 for T channel inactivation
+    REGLpnames.append(new String("phi_m_Ts"))    // temperature adjustion to tau_m
+    REGLpnames.append(new String("phi_h_Ts"))    // temperature adjustion to tau_h
+    REGLpnames.append(new String("coeff_Ts"))    // zF/RT
+    if ($4 == 2) {
+        REGLpnames.append(new String("vrat_cld2[0]"))    // relative volume (of 1 um diam cyl) of outer shell
+        REGLpnames.append(new String("vrat_cld2[1]"))    // relative volume (of 1 um diam cyl) of inner shell
+    }
+    c3 = REGLpnames.count()
+
+    if ($5) {
+        /* Append parameters for RE[i] to REotherpnames */
+        REotherpnames.append(new String("soma_flank[0].L"))    // length (um) of left compartment
+        REotherpnames.append(new String("soma_flank[1].L"))    // length (um) of right compartment
+        c4 = REotherpnames.count()
+    }
+
+    /* Append "i" for cell index and append all parameters to REpnames */
+    REpnames.append(new String("i"))        // 0th column: ID #
+    for j=0, c1-1 {
+        REpnames.append(REsomapnames.o(j))
+    }
+    for j=0, c2-1 {
+        REpnames.append(REgabaapnames.o(j))        
+    }
+    for j=0, c3-1 {
+        REpnames.append(REGLpnames.o(j))        
+    }
+    if ($5) {
+        for j=0, c4-1 {
+            REpnames.append(REotherpnames.o(j))        
+        }
+    }
+
+    /* Print parameters to a matrix */
+    REparamsmat = new Matrix(ncells, REpnames.count())    // stores parameters for all neurons
+    for i=0, ncells-1 {    // for each cell in the network
+        REparamsmat.x[i][0] = i        // ID #
+        for j=1, c1 {            // for each parameter of RE[i].soma
+            sprint(command, "REparamsmat.x[i][j] = RE[i].soma.%s", REpnames.o(j).s)    // create command
+            execute(command)    // execute command
+            strdef command        // destroy command
+        }
+        for j=c1+1, c1+c2 {        // for each parameter of REgabaa[i]
+            if ($2 == 1) {
+                sprint(command, "REparamsmat.x[i][j] = REgabaa[i].%s", REpnames.o(j).s)        // create command
+            } else if ($2 >= 3) {
+                sprint(command, "REparamsmat.x[i][j] = REgabaA[i][RERErad].%s", REpnames.o(j).s)    // create command
+            }
+            execute(command)    // execute command
+            strdef command        // destroy command
+        }
+        for j=c1+c2+1, c1+c2+c3 {    // for each GLOBAL parameter
+            sprint(command, "REparamsmat.x[i][j] = %s", REpnames.o(j).s)    // create command
+            execute(command)    // execute command
+            strdef command        // destroy command
+        }
+        if ($5) {
+            for j=c1+c2+c3+1, c1+c2+c3+c4 {    // for each parameter of RE[i]
+                sprint(command, "REparamsmat.x[i][j] = RE[i].%s", REpnames.o(j).s) // create command
+                execute(command)    // execute command
+                strdef command        // destroy command
+            }
+        }
+    }
+
+    /* Print parameters to a file */
+    REparamsF = new File()                    // file with parameters for each neuron
+    REparamsF.wopen($s1)                    // open file to be written
+    for j=0, REpnames.count()-1 {        // for each parameter
+        REparamsF.printf("%s, ", REpnames.o(j).s)    // print parameter name in header
+    }
+    REparamsF.printf("\n")
+    REparamsmat.fprint(REparamsF, "%g, ", "\n")        // the second line of the file is "nrow ncol"
+    REparamsF.close()                    // close file
+
+}
+
+
+/*
+OLD CODE:
+
+*/

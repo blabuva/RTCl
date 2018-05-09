@@ -1,0 +1,29 @@
+/*--------------------------------------------------------------
+    DEFINE GLOBAL PARAMETERS AND LOAD PROCEDURES
+    --------------------------------------------
+
+    Requires:
+        cd/net.hoc
+    Used by:    
+        cd/neuronlaunch.m
+
+    File history:
+    2017-02-24 Modified from run.hoc
+    2017-03-07 Added nsp
+    2018-05-08 Organized comments
+
+--------------------------------------------------------------*/
+
+/* Global parameters to be defined at the start of NEURON
+    To be consistent with neuronlaunch.m */
+ncells = 100        // total number of cells in the network
+celsius = 31        // temperature of experiment (celsius), 
+                    //    Peter's value (Sohal & Huguenard 2003 used 34 degC)
+nsp = 3             // number of special neurons
+RERErad = 4         // radius of intra-RE connections, Sohal & Huguenard 2003
+
+/******************************************************************************/
+/* Load procedures for the simulation  */
+load_file("./net.hoc")    
+                    // ncells must be defined; contains buildnet(), randleak()
+
