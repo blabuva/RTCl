@@ -363,7 +363,7 @@ pislog  = [0];              % whether increments of parameters is in log
 
 %% Global parameters to be defined at the start of NEURON, 
 %   to be consistent with run.hoc or run.hoc
-ncells = 10; %100;       % SET IN run.hoc: total number of cells in the network
+ncells = 100;       % SET IN run.hoc: total number of cells in the network
 celsius = 31;       % SET IN run.hoc: temperature of experiment (celsius), 
                     %                   Peter's value 
                     %                   (Sohal & Huguenard 2003 used 34 degC)
