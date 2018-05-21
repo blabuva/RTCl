@@ -1013,10 +1013,10 @@ fprintf('It took %3.3g seconds to plot and save stuff!!\n', time_taken);
 fprintf('\n');
 
 %% Play Handel if not on Rivanna
-if exist('/media/adamX/RTCl/', 'dir') == 7
-    load handel
-    sound(y, Fs);
-end
+% if exist('/media/adamX/RTCl/', 'dir') == 7
+%     load handel
+%     sound(y, Fs);
+% end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
