@@ -104,14 +104,19 @@
 % 2017-05-09 Changed plotcurves to plottuning
 % 2018-05-09 Found all dependent files and listed them
 % 2018-05-09 Now compiles .mod files at the beginning of each run
+% 2018-05-22 Added isunix and hocFile
 
 %% Clear workspace and close figures
 clear all force hidden
 close all force hidden
 
 %% Compile custom .mod files
-unix('nrnivmodl');
-
+if isunix
+    unix('nrnivmodl');
+else
+    dos('C:\nrn\bin\nrnivmodl');
+end
+    
 %% Set all legend 'AutoUpdate' properties to 'off'
 %   This is for MATLAB R2017a and beyond, for compatibility with the code
 %   However, it doesn't seem to be working ...
@@ -911,19 +916,28 @@ while ct < ntrials                  % while not trials are completed yet
     end
     parfor k = first:last
     %for k = first:last
+        %% Decide on the hoc file
+        if ncells == 100
+            hocFile = 'run.hoc';
+        elseif ncells == 10
+            hocFile = 'run_small.hoc';
+        end 
+        
         %% Use run.hoc with sim_cmd
         %##########
         %##############
-        if ncells == 100
-            [status, results{k}] = ...
-                unix(sprintf(['x86_64/special run.hoc - << here\n', ...
-                                '%s\nprint "No_Errors!"\nhere'], ...
-                    sim_cmd{k}));    
-        elseif ncells == 10
-            [status, results{k}] = ...
-                unix(sprintf(['x86_64/special run_small.hoc - << here\n', ...
-                                '%s\nprint "No_Errors!"\nhere'], ...
-                    sim_cmd{k}));    
+        if ncells == 100 || ncells == 10
+            if isunix
+                [status, results{k}] = ...
+                    unix(sprintf(['x86_64/special %s - << here\n', ...
+                                    '%s\nprint "No_Errors!"\nhere'], ...
+                        hocFile, sim_cmd{k}));
+            else
+                [status, results{k}] = ...
+                    dos(sprintf(['x86_64/special %s - << here\n', ...
+                                    '%s\nprint "No_Errors!"\nhere'], ...
+                        hocFile, sim_cmd{k}));    
+            end
         else
             status = -3;
             results{k} = 'NEURON wasn''t run because ncells is not correct\n';
