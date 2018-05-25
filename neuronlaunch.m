@@ -113,9 +113,16 @@ close all force hidden
 %% Compile custom .mod files
 if isunix
     unix('nrnivmodl');
-else
-    dos('C:\nrn\bin\nrnivmodl');
 end
+
+%% Append NEURON folder to system path for Windows
+if ~isunix
+    neuronPath = 'C:\nrn\bin';
+    if ~any(strfind(getenv('PATH'), neuronPath))
+        setenv('PATH', [getenv('PATH'), neuronPath, ';']);
+    end
+end
+quitFile = 'quit.hoc';      % needed for Windows
     
 %% Set all legend 'AutoUpdate' properties to 'off'
 %   This is for MATLAB R2017a and beyond, for compatibility with the code
@@ -562,7 +569,7 @@ end
 
 %% Set folders for reading and saving files
 % Find home directory
-if exist(fullfile(pwd, '/Adams_Functions/'), 'dir') == 7
+if exist(fullfile(pwd, 'Adams_Functions'), 'dir') == 7
     homedirectory = pwd;
 elseif exist('/media/adamX/RTCl/', 'dir') == 7
     homedirectory = '/media/adamX/RTCl/';
@@ -573,7 +580,7 @@ else
 end
 
 %% Add directories to search path for required functions
-if exist(fullfile(pwd, '/Adams_Functions/'), 'dir') == 7
+if exist(fullfile(pwd, 'Adams_Functions'), 'dir') == 7
     functionsdirectory = pwd;
 elseif exist('/home/Matlab/', 'dir') == 7
     functionsdirectory = '/home/Matlab/';
@@ -755,6 +762,20 @@ for k = 1:ntrials
     sREparamsF_full{k}     = construct_fullfilename(sREparamsF, ...
                                 'Directory', outfolder, ...
                                 'NameValuePairs', {pchnames_k, pchvalues_k});
+
+    % If on Windows, convert all forward slashes to double forward slashes,
+    %   so that these paths can be used in sprintf()
+    if ~isunix
+        sREREsynF_full{k}  = strrep(sREREsynF_full{k},  '\', '\\');
+        sREspikeF_full{k}  = strrep(sREspikeF_full{k},  '\', '\\'); 
+        sREvF_full{k}      = strrep(sREvF_full{k},      '\', '\\'); 
+        sREcliF_full{k}    = strrep(sREcliF_full{k},    '\', '\\');
+        sREsp1F_full{k}    = strrep(sREsp1F_full{k},    '\', '\\');
+        sREsp2F_full{k}    = strrep(sREsp2F_full{k},    '\', '\\');
+        sREsp3F_full{k}    = strrep(sREsp3F_full{k},    '\', '\\');
+        sREleakF_full{k}   = strrep(sREleakF_full{k},   '\', '\\');
+        sREparamsF_full{k} = strrep(sREparamsF_full{k}, '\', '\\'); 
+    end
 end
 
 %% Find the IDs of cells that are stimulated or artificially activated
@@ -871,6 +892,13 @@ end
 results = cell(1, ntrials);         % stores simulation standard outputs
 timer1 = tic();
 
+%% Decide on the hoc file
+if ncells == 100
+    hocFile = 'run.hoc';
+elseif ncells == 10
+    hocFile = 'run_small.hoc';
+end 
+
 % Get current parallel pool object without creating a new one
 poolobj = gcp('nocreate');
 
@@ -915,28 +943,29 @@ while ct < ntrials                  % while not trials are completed yet
         poolobj = parpool('local', numworkers);
     end
     parfor k = first:last
-    %for k = first:last
-        %% Decide on the hoc file
-        if ncells == 100
-            hocFile = 'run.hoc';
-        elseif ncells == 10
-            hocFile = 'run_small.hoc';
-        end 
-        
+    %for k = first:last      
         %% Use run.hoc with sim_cmd
         %##########
         %##############
         if ncells == 100 || ncells == 10
-            if isunix
+            if isunix                                   % on Linux/Mac
+                % Run hoc file with the commands attached as a here document
                 [status, results{k}] = ...
                     unix(sprintf(['x86_64/special %s - << here\n', ...
                                     '%s\nprint "No_Errors!"\nhere'], ...
                         hocFile, sim_cmd{k}));
-            else
+            else                                        % on Windows
+                % Print the commands to a file
+                commandsFile = fullfile(outfolder, ...
+                                        ['sim_cmd_', num2str(k), '.hoc']);
+                fid = fopen(commandsFile, 'w');
+                fprintf(fid, '%s\nprint "No_Errors! "\n', sim_cmd{k});
+                fclose(fid);
+
+                % Run hoc file, then commands file
                 [status, results{k}] = ...
-                    dos(sprintf(['x86_64/special %s - << here\n', ...
-                                    '%s\nprint "No_Errors!"\nhere'], ...
-                        hocFile, sim_cmd{k}));    
+                    dos(sprintf('nrniv.exe %s %s %s', ...
+                        hocFile, commandsFile, quitFile));
             end
         else
             status = -3;
@@ -951,7 +980,7 @@ while ct < ntrials                  % while not trials are completed yet
         fprintf('Simulation #%d complete!\n', k);
         %##############
         %##########
-   end
+    end
     if renewparpoolflag_NEURON
         % Delete the parallel pool object to release memory
         delete(poolobj);
