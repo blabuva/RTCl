@@ -11,3 +11,5 @@ Details:
     + [NEURON](https://www.neuron.yale.edu/neuron/)
 
 + Main file to launch program is [**neuronlaunch.m**](neuronlaunch.m). The first section of the program contains flags one could change to plot and/or save different outputs. Feel free to play around with it!
+
++ For Windows, you'll have to manually call up the mknrndll GUI and select the folder containing the .mod files you want to compile. Please see the mknrndll part of [this page](https://www.neuron.yale.edu/neuron/static/docs/nmodl/mswin.html) for reference.
