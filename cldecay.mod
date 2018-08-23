@@ -1,10 +1,10 @@
-TITLE Fast mechanism for submembranal Cl- concentration (cli)
+TITLE Fast mechanism for submembranal Cl- concentration, version 0 (cld)
 
 COMMENT
 
     Takes into account:
       - increase of cli due to chloride currents
-      - extrusion of chloride with a simple first order equation
+      - extrusion of chloride modelled with a simple first order equation
 
     Parameters:
       - depth: depth of the shell just beneath the membrane (in um)

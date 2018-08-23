@@ -1,12 +1,13 @@
-TITLE Fast mechanism for submembranal Cl- concentration (cli)
+TITLE Fast mechanism for submembranal Cl- concentration, version 2 (cld2)
 
 COMMENT
 
     Takes into account:
-       - chloride ion accumulation by chloride pump (Lineweaver-Burke equation) 
+      - chloride ion accumulation by chloride pump (Lineweaver-Burke equation) 
           and chloride leak
-        - radial diffusion
-       - longitudinal diffusion
+      - radial diffusion
+      - longitudinal diffusion
+      - extrusion of chloride modelled with Michaelis-Menten kinetics
 
     Diffusion model is modified from Ca diffusion model in Hines & Carnevale: 
     Expanding NEURON with NMODL, Neural Computation 12: 839-851, 2000 
